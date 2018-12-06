@@ -1,0 +1,53 @@
+readingDataPointsFilters:
+  - MaxDensityDataPointsFilter:
+      maxDensity: 20
+#9000
+#  - RandomSamplingDataPointsFilter:
+#      prob: 0.1
+
+referenceDataPointsFilters:
+#  - MaxDistDataPointsFilter:
+#      maxDist: 20.0
+  - MaxDensityDataPointsFilter:
+      maxDensity: 20
+  - RandomSamplingDataPointsFilter:
+      prob: 0.2
+ #- RandomSamplingDataPointsFilter:
+       #prob: 0.7
+
+matcher:
+  KDTreeMatcher:
+    knn: 3
+    maxDist: 2
+    epsilon: 0
+
+outlierFilters:
+  - TrimmedDistOutlierFilter:
+     ratio: 0.7
+  - SurfaceNormalOutlierFilter:
+     maxAngle: 1.57
+  - GenericDescriptorOutlierFilter:
+     source: reference
+     descName: probabilityStatic
+
+errorMinimizer:
+  PointToPlaneErrorMinimizer
+
+transformationCheckers:
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.001
+      minDiffTransErr: 0.01
+      smoothLength: 2
+  - CounterTransformationChecker:
+      maxIterationCount: 40
+  - BoundTransformationChecker:
+      maxRotationNorm: 0.80
+      maxTranslationNorm: 30.00
+
+inspector:
+#  VTKFileInspector
+  NullInspector
+
+logger:
+#  FileLogger
+  NullLogger

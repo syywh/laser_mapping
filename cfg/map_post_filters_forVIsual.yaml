@@ -1,0 +1,9 @@
+
+# Do not use subsampling filters!
+#- MaxDensityDataPointsFilter:
+#   maxDensity: 1.0  # 5.0
+- MaxDensityDataPointsFilter:
+    maxDensity: 1
+- MaxPointCountDataPointsFilter:
+    maxCount: 700000
+

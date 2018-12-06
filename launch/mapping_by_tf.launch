@@ -1,0 +1,33 @@
+<!-- 
+Files tuned for ethzasl_icp_mapping commit 52d78c96c2cf2f58a400c649c561dbfec95e41a4
+and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
+
+"Long-term 3D map maintenance in dynamic environments"
+-->
+
+<launch>
+	<!--
+	<arg name="file_path" default="/home/fabio/Documents/ASL-Lidar/data/velodyne/2016-03-11/2016-03-11-12-11-53.bag"/>
+	-->
+	
+
+	
+	<!-- <arg name="rviz_config" /> -->
+	
+	
+	<!--node pkg="rviz" type="rviz" name="visualization" output="screen" respawn="true" args="-d /home/xiaqing/.rviz/dynamic_slam.rviz" / -->
+	
+<!--
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 odom velodyne 100" />
+-->
+
+	<param name="/use_sim_time" value="false"/>
+	<node name="mapping_by_tf" type="mapping_by_tf" pkg="laser_mapping" output="screen" >
+		<param name="bagname" value="/home/dxq/workspace/data/new_park_vel_16_2018-09-07-14-48-11.bag"/>
+
+		<param name="cloud_in" value="/velodyne_points"/>
+
+
+	</node>
+
+</launch>

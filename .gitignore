@@ -1,0 +1,8 @@
+build/*
+*.ply
+*.vtk
+KeyFrame/*
+Map/*
+*.kdev4
+*~
+Log/*
