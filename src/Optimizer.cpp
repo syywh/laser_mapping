@@ -49,7 +49,7 @@ void Optimizer::OptimizeGraph(Map* pMap, int Count, PointMatcher< float >::ICPSe
 		  map<long unsigned int, bool> tempReachable = (*allKeyFrames_it)->neighbours_isReachable;
 		for(; neighbor_it !=(*allKeyFrames_it)->neighbours.end(); neighbor_it++)
 		{
-			cerr<<neighbor_it->first<<" is "<<tempReachable[neighbor_it->first]<<endl;
+// 			cerr<<neighbor_it->first<<" is "<<tempReachable[neighbor_it->first]<<endl;
 			if(kfIds.find(neighbor_it->first) != kfIds.end()){
 				if(tempReachable[neighbor_it->first])
 				{
@@ -97,6 +97,19 @@ void Optimizer::OptimizeGraph(Map* pMap, int Count, PointMatcher< float >::ICPSe
 // 		temp.block<0,0>(3,3) = iso3.cast<float>();
 		
 		pKF->OptimizedPose(temp);
+	}
+	
+	for(size_t t = 0; t < allKeyFrames.size() ; t++){
+		KeyFrame* pKF = allKeyFrames[t];
+		
+		for (auto neighbour_it = pKF->neighbours.begin(); neighbour_it != pKF->neighbours.end(); ++neighbour_it){
+			int neighbor_id =  neighbour_it->first;
+			KeyFrame* neighbor_KF = pMap->getKeyFrame(neighbor_id);
+			PM::TransformationParameters pose_matrix = pKF->getPose().inverse() * neighbor_KF->getPose() ;
+			neighbour_it->second = pose_matrix;
+			
+			
+		}
 	}
 	
 	graphOptimizer.clear();

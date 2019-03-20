@@ -1,6 +1,6 @@
 readingDataPointsFilters:
   - MaxDensityDataPointsFilter:
-      maxDensity: 20
+      maxDensity: 30
 #9000
 #  - RandomSamplingDataPointsFilter:
 #      prob: 0.1
@@ -9,7 +9,7 @@ referenceDataPointsFilters:
 #  - MaxDistDataPointsFilter:
 #      maxDist: 20.0
   - MaxDensityDataPointsFilter:
-      maxDensity: 20
+      maxDensity: 30
   - RandomSamplingDataPointsFilter:
       prob: 0.2
  #- RandomSamplingDataPointsFilter:
@@ -23,7 +23,7 @@ matcher:
 
 outlierFilters:
   - TrimmedDistOutlierFilter:
-     ratio: 0.7
+     ratio: 0.75
   - SurfaceNormalOutlierFilter:
      maxAngle: 1.57
   - GenericDescriptorOutlierFilter:

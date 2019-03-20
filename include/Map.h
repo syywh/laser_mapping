@@ -69,8 +69,7 @@ public:
 	void showNodesPose();
 	bool linkNodes();
 	
-	
-	
+
 protected:
 	void AddMapPoints();//change the map points when the keyframe is inserted, be careful of the dead lock!
 	void AddKeyFrameWithoutAddMapPoints(KeyFrame* pKeyFrame);

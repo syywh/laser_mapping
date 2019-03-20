@@ -988,12 +988,12 @@ void LocalMapping::CreateNewKeyFrames()
 
 	mpMap->AddKeyFrame(mCurrentKeyFrame);
 
-// 	mpLoopMapper->InsertKeyFrame(newKeyFrame);
+
 	KeyFrame* tempKF;
 	tempKF = mCurrentKeyFrame;
 
 // 	mpMap->AddKeyFrame(mCurrentKeyFrame);
-	mpLoopMapper->InsertKeyFrame(tempKF);
+// 	mpLoopMapper->InsertKeyFrame(tempKF);//
 
 
 	mCurrentKeyFrame = newKeyFrame;

@@ -3220,5 +3220,11 @@ bool ICPMapper::initializationforReSLAM()
 	
 }
 
+void ICPMapper::stop()
+{
+	mpMap->mFrame_Record.push_back(mTemp_Frame_Record);
+}
+
+
 
 }

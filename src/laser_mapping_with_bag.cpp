@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 
 		sensor_msgs::Imu::Ptr imuData = m.instantiate<sensor_msgs::Imu>();
 		if(use_imu && imuData){
-			ROS_INFO_STREAM("read imu data " << imuData->header.stamp);
+// 			ROS_INFO_STREAM("read imu data " << imuData->header.stamp);
 			imu_preintegrator.addIMUMsg(*imuData);
 
 
@@ -188,9 +188,15 @@ int main(int argc, char **argv)
 // 	
 	//Now Only One File open
 	localMapper.Stopping();
+	mapper.stop();
+	
+	
 	string fileName; 
 	
 	MapPub.Refresh();
+	
+	cerr<<"check distance "<<LoopCloser.checkAllKeyFrameByDistance()<<endl;
+	LoopCloser.computeICP();
 	
 
 	if( !(ros::param::get("~MapSavingFile", fileName)))

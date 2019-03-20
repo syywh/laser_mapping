@@ -23,7 +23,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 
 	<param name="/use_sim_time" value="false"/>
 	<node name="laser_mapping_with_bag" type="laser_mapping_with_bag" pkg="laser_mapping" output="screen" >
-		<param name="bagname" value="/media/dxq/D/data/bag/thomas/laser_zed/thomas_2017-05-19-14-58-03.bag"/>
+		<param name="bagname" value="/media/dxq/D/projects/cherry/ww/wf.bag"/>
 		<param name="TASK" value="without_map"/>
 		<param name="reSLAM_refKFID" value="9"/>
 		<param name="BeginID" value="0"/>
@@ -40,8 +40,8 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="image_msg_name" value="/camera/left/image_rect_color" />
 		<param name="gps_msg_name" value="/fix" />
 
-		<param name="MapSavingFile" value="$(find laser_mapping)/KeyFrame/map_0519.xml"/>
-		<param name="FramesSavingPath" value="$(find laser_mapping)/KeyFrame/frames_csc/"/>
+		<param name="MapSavingFile" value="/media/dxq/D/projects/cherry/ww/frames_wf/map_wf.xml"/>
+		<param name="FramesSavingPath" value="/media/dxq/D/projects/cherry/ww/frames_wf/"/>
 		
 		<param name="MapReadingFile" value="$(find laser_mapping)/KeyFrame/map_smallspace.xml"/>
 		<param name="FramesReadingPath" value="$(find laser_mapping)/KeyFrame/frames/"/>
@@ -85,20 +85,20 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="alpha" value="0.99"/>
 		<param name="beta" value="0.90"/>ss
 		<param name="maxDyn" value="0.90"/>
-		<param name="maxDistNewPoint" value="0.05"/>
+		<param name="maxDistNewPoint" value="0.2"/>
 		<param name="sensorMaxRange" value="100.0"/>
 		<param name="halfRoadWidth" value="20"/>
 		<param name="MaxLocalMappoints" value="3000000"/>
-		<param name="KFthreOverlap" value="0.5"/>
-		<param name="maxLocalMapLength" value="20"/>
+		<param name="KFthreOverlap" value="0.6"/>
+		<param name="maxLocalMapLength" value="25"/>
 		<param name="windows_width" value="5"/>
 		<param name="delta_width" value="1"/>
 		<param name="initial_time" value="5"/>
 		<param name="th_velo_up" value="1.0"/>
-		<param name="min_add_dist" value="0.2"/>
+		<param name="min_add_dist" value="2"/>
 		<param name="maxAngleforKF" value="7.0"/>
 		<param name="staticKept" value="0.55"/>
-		<param name="robot_height" value="0.5"/>
+		<param name="robot_height" value="0.7"/>
 	</node>
 
 </launch>

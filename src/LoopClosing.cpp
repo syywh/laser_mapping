@@ -16,6 +16,15 @@ LoopClosing::LoopClosing()
 
 LoopClosing::LoopClosing(Map* pMap):mpMap(pMap),mbResetRequested(false),mLastLoopKFTime(0),mLastLoopKFid(0)
 {
+	
+	
+// distanceCheck(getParam<double>("distance_check", 20));
+// thread_num(getParam<int >("thread_num", 8));
+// icpOverlap(getParam<double>("icp_overlap", 0.6));
+	
+	distanceCheck = 20;
+	thread_num = 8;
+	icpOverlap = 0.3;
 	mpMatchedKF = NULL;
 	NumOfClosure = 0;
 	isUpdate = false;
@@ -255,7 +264,184 @@ bool LoopClosing::DetectLoop()
 }
 
  
+int LoopClosing::checkAllKeyFrameByDistance()
+{
+	//---construct a vector from map keyframes
+	vector<KeyFrame*> allKeyFrames;
 
+	mpMap->getAllKeyFrames(allKeyFrames);
+	
+	//---add candidate keyframes to candidateKFByDistance in consideration of distance
+	
+	candidateKFByDistance.clear();
+	
+	for(size_t i = 0; i < (allKeyFrames.size()); i++)
+	{
+		PM::TransformationParameters TCurrent = allKeyFrames[i]->getPose();
+		cout << "node " << allKeyFrames[i]->mnId <<" " << allKeyFrames[i]->neighbours.size() <<" ";
+// 		for(size_t j = (i+1); j < allKeyFrames.size(); j++)	//跟id没关系啦，要遍历
+		for(size_t j = 0; j < allKeyFrames.size(); j++)
+		{
+			PM::TransformationParameters TCandidate = allKeyFrames[j]->getPose();
+// 			Eigen::Vector3f delta_t = TCandidate.col(3).head(3) - TCurrent.col(3).head(3);
+			//FIXME perhaps not right in every situation
+			//changed to xy distance
+// 			if((fabs(allKeyFrames[j]->mnId - allKeyFrames[i]->mnId ) > 1) && 
+// 				(allKeyFrames[i]->neighbours.find(allKeyFrames[j]->mnId)!=(allKeyFrames[i]->neighbours.end())))
+// 				{
+// 					cout << "add " <<   allKeyFrames[i]->mnId <<" - "<< allKeyFrames[j]->mnId<<endl;
+// 					pair<int, int> temp_pair(allKeyFrames[i]->mnId, allKeyFrames[j]->mnId);
+// 					candidateKFByDistance.push_back(temp_pair);
+// 				}
+						
+#if 1 // trick for yinhuan
+			Eigen::Vector2f delta_t = TCandidate.col(3).head(2) - TCurrent.col(3).head(2);
+
+			if((delta_t.norm()<distanceCheck))
+			{
+				pair<int, int> temp_pair(allKeyFrames[i]->mnId, allKeyFrames[j]->mnId);
+				// 该点不是原本邻居
+				if( allKeyFrames[i]->neighbours.find(allKeyFrames[j]->mnId) == (allKeyFrames[i]->neighbours.end()) &&
+					(fabs(allKeyFrames[i]->mnId - allKeyFrames[j]->mnId) > 1)
+				){
+					cout << "add " <<   allKeyFrames[i]->mnId <<" - "<< allKeyFrames[j]->mnId<<endl;
+					candidateKFByDistance.push_back(temp_pair);
+				}
+				//DE
+// 				candidateKFByDistance.push_back(temp_pair);
+				
+				
+			}
+#endif
+		}
+	}
 	
 
+// 	pair<int, int> temp_pair(allKeyFrames.front()->mnId,allKeyFrames.back()->mnId);
+// 	candidateKFByDistance.push_back(temp_pair);
+	
+// 	pair<int, int> temp_pair(306,386);
+// 	candidateKFByDistance.push_back(temp_pair);
+// 	pair<int, int> temp_pair2(306,384);
+// 	candidateKFByDistance.push_back(temp_pair2);
+// 	pair<int, int> temp_pair3(269,337);
+// 	candidateKFByDistance.push_back(temp_pair3);
+// 	
+	return candidateKFByDistance.size();
+}
+	
+int LoopClosing::computeICP()
+{
+
+// 	string KFbase = ros::package::getPath("laser_mapping")+"/KeyFrame/frames/";
+// 	fstream recordMatches;
+// 	string frecordMatches = ros::package::getPath("offline_optimization")+"/recordMatch.txt";
+// 	recordMatches.open(frecordMatches);
+	
+// 	int thread_num = 8;
+	if(thread_num >8)
+		thread_num = 8;
+	omp_set_num_threads(thread_num);
+	cerr<<"thread_num = "<<thread_num<<endl;
+// 	#pragma omp parallel for
+	for(size_t i = 0;i<candidateKFByDistance.size(); i++)
+	{
+		
+		KeyFrame* firstKF;
+		KeyFrame* secondKF;
+		
+		firstKF = mpMap->getKeyFrame(candidateKFByDistance[i].first);
+		secondKF = mpMap->getKeyFrame(candidateKFByDistance[i].second);
+		
+		cerr<<"computeICP + candidate by distance  "<<firstKF->mnId<<" "<<secondKF->mnId<<" ";
+		
+// 		if( !(firstKF->mLocalMapPoints) )
+// 		{
+// 			stringstream nodestring;
+// 			nodestring<<KFbase<<candidateKFByDistance[i].first<<"/DataPoints.vtk";
+// 			firstKF->mLocalMapPoints = new DP(DP::load(nodestring.str()));
+// 		}
+// 		if( !(secondKF->mLocalMapPoints) )
+// 		{
+// 			stringstream nodestring;
+// 			nodestring<<KFbase<<candidateKFByDistance[i].second<<"/DataPoints.vtk";
+// 			secondKF->mLocalMapPoints = new DP(DP::load(nodestring.str()));
+// // 
+// 		}
+
+// 		PM::ICPSequence icp_copy;
+// 		ifstream ifs(configFileName.c_str());
+// 		icp_copy.loadFromYaml(ifs);
+
+		
+		icp.setMap(*(firstKF->mLocalMapPoints));
+		PM::TransformationParameters Ticp = PM::TransformationParameters::Identity(4 ,4);
+		PM::TransformationParameters Tpre;
+		try{
+			Tpre = (firstKF->getPose().inverse())*(secondKF->getPose());
+			if(abs(Tpre(2,3)) >10)
+				Tpre(2,3) /= 3;
+			Ticp = icp(*(secondKF->mLocalMapPoints), Tpre);
+			
+			Eigen::Vector2f delta_t = Tpre.col(3).head(2) - Ticp.col(3).head(2);
+			if((delta_t.norm()>20))//相当于可矫正的误差,小了曹楼那边木有边
+			{ 
+// 				recordMatches<<firstKF->mnId <<"  "<<secondKF->mnId<<" delta too large"<<endl;
+				continue;
+			}
+			const double estimatedOverlap = icp.errorMinimizer->getOverlap();
+			if(estimatedOverlap>icpOverlap)
+			{
+				std::pair<long unsigned int, PM::TransformationParameters> neighbor( firstKF->mnId,Ticp.inverse());
+				std::pair<long unsigned int, PM::TransformationParameters> neighborinv( secondKF->mnId,Ticp);
+				std::pair<long unsigned int, bool> neighbor_reachable(firstKF->mnId, false);
+				std::pair<long unsigned int, bool> neighborinv_reachable(secondKF->mnId, true);
+
+				std::map<long unsigned int, PM::TransformationParameters>::iterator n_it;
+				std::map<long unsigned int, bool>::iterator r_it;
+				
+				n_it = secondKF->neighbours.find(firstKF->mnId);
+				if(n_it != secondKF->neighbours.end()){
+					secondKF->neighbours.erase(n_it);
+					secondKF->neighbours_isReachable.erase(secondKF->neighbours_isReachable.find(firstKF->mnId));
+				}
+				r_it = firstKF->neighbours_isReachable.find(secondKF->mnId);
+				if(r_it != firstKF->neighbours_isReachable.end()){
+					firstKF->neighbours_isReachable.erase(r_it);
+					firstKF->neighbours.erase(firstKF->neighbours.find(secondKF->mnId));
+				}
+				secondKF->neighbours.insert(neighbor);	
+				secondKF->neighbours_isReachable.insert(neighbor_reachable);
+				firstKF->neighbours.insert(neighborinv);
+				firstKF->neighbours_isReachable.insert(neighborinv_reachable);
+				
+				cerr<<"added edge"<<endl;
+				
+// 				recordMatches<<firstKF->mnId <<"  "<<secondKF->mnId<<" OK"<<endl;
+			}else
+			{
+				cerr<<"failed with overlap " <<estimatedOverlap <<endl;
+// 				recordMatches<<firstKF->mnId <<"  "<<secondKF->mnId<<" overlap too small"<<endl;
+			}
+			
+
+		}catch (runtime_error error)
+		{
+			cerr<<"KeyFrame "<<firstKF->mnId<<" and KeyFrame "<<secondKF->mnId<<endl;
+			ROS_ERROR_STREAM("LOOP_CLOSING ICP failed to converge: " << error.what());
+		}
+	}
+	timer to;
+	Optimizer optimizer;
+// 	optimizer.OptimizeGraph(mpMap, bestCandidate, mpCurrentKF,NumOfClosure++,icp);
+// 	optimizer.OptimizeGraph(mpMap,mpLoopKF,NumOfClosure++,icp);
+	//TEST
+	optimizer.OptimizeGraph(mpMap,NumOfClosure++, icp);
+	
+// 	mpLocalMapper->UPdateTLocalICP(mpCurrentKF->mnId);
+	isUpdate = true;
+
+// 	cerr<<"[loop closer] Optimize takes "<<t.elapsed()<<endl;
+// 	recordMatches.close();
+}
 }

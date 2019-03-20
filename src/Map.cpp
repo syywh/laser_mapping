@@ -3,7 +3,7 @@
 #include "ros/package.h"
 #include <boost/pending/property.hpp>
 #include <boost/graph/graph_concepts.hpp>
-
+#include "glog/logging.h"
 
 namespace Velodyne_SLAM {
 Map::Map():transformation(PM::get().REG(Transformation).create("RigidTransformation"))
@@ -56,7 +56,7 @@ void Map::AddKeyFrame(KeyFrame* pKeyFrame)
 {
 	boost::mutex::scoped_lock lock(mMutexMap);
 	mspKeyFrames.push_back(pKeyFrame);
-	
+	cout << "map add keyframe "<<pKeyFrame->mnId << endl;
 	if(!mCurrentKF)
 	{
 		mCurrentKF = pKeyFrame;
@@ -344,6 +344,9 @@ void Map::save(const std::string& filename)
     p_map.put("map.property.node_count", mspKeyFrames.size());
 
     boost::property_tree::ptree p_node_list;
+	int maxKF = mspKeyFrames.size()-1;
+	KeyFrame* endkf = mspKeyFrames[maxKF];
+	bool circle = false;
     for (auto node_it = (mspKeyFrames.begin()); node_it != mspKeyFrames.end(); ++node_it)
     {
       boost::property_tree::ptree p_node;
@@ -353,11 +356,14 @@ void Map::save(const std::string& filename)
 //       p_node.put("is_Keyframe", true);	//TEST 
       boost::property_tree::ptree p_neighbour_list;
        map<long unsigned int, bool> tempReachable = (*node_it)->neighbours_isReachable;
+	  
+	  cout << (*node_it)->mnId <<"-";
       for (auto neighbour_it = (*node_it)->neighbours.begin(); neighbour_it != (*node_it)->neighbours.end(); ++neighbour_it)
       {
 		boost::property_tree::ptree p_neighbour;
 // 		p_neighbour.put("id", mspKeyFrames[neighbour_it->first]->mnFrameId);//TEST 
 		p_neighbour.put("id", neighbour_it->first);
+		cout << neighbour_it->first <<"-";
 	//         Transform T(neighbour_it->second.cast<double>());
 		PM::TransformationParameters pose_matrix = neighbour_it->second;
 	// 	Eigen::Isometry3d iso3(pose_matrix.cast<double>());
@@ -378,7 +384,60 @@ void Map::save(const std::string& filename)
 		p_neighbour.put("reachable", tempReachable[neighbour_it->first]);
 // 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
 		p_neighbour_list.add_child("neighbour", p_neighbour);
+		
+		if(((*node_it)->mnId == 0) && (neighbour_it->first == maxKF)){
+			cout << "circle" << endl;
+			circle = true;
+		}
+		
+
       }
+      if(((*node_it)->mnId == 0) && (!circle)){
+		  boost::property_tree::ptree p_neighbour;
+		  p_neighbour.put("id", endkf->mnId);
+		  PM::TransformationParameters pose_matrix = endkf->getPose();
+			Eigen::Isometry3d iso3;
+			iso3 = pose_matrix.block<3,3>(0,0).cast<double>();
+			iso3.translation() = pose_matrix.block<3,1>(0,3).cast<double>();
+			Eigen::Isometry3d T(iso3);
+	// 		Transform Tinv = T.inverse();
+
+			Eigen::Quaterniond q(T.rotation());
+			Vector t(T.translation());
+		
+			std::stringstream ss;
+	// 		std::stringstream ssinv;
+			ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
+	// 		ssinv<<tinv[0]<<" "<< tinv[1] << " " << tinv[2] << " " << qinv.w() << " " << qinv.x() << " " << qinv.y() << " " << qinv.z();
+			p_neighbour.put("transform", ss.str());
+			p_neighbour.put("reachable", true);
+	// 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
+			p_neighbour_list.add_child("neighbour", p_neighbour);
+	  }
+	  if(((*node_it)->mnId == maxKF) && (!circle) ){
+		  boost::property_tree::ptree p_neighbour;
+		  p_neighbour.put("id", endkf->mnId);
+		  PM::TransformationParameters pose_matrix = endkf->getPose().inverse();
+			Eigen::Isometry3d iso3;
+			iso3 = pose_matrix.block<3,3>(0,0).cast<double>();
+			iso3.translation() = pose_matrix.block<3,1>(0,3).cast<double>();
+			Eigen::Isometry3d T(iso3);
+	// 		Transform Tinv = T.inverse();
+
+			Eigen::Quaterniond q(T.rotation());
+			Vector t(T.translation());
+		
+			std::stringstream ss;
+	// 		std::stringstream ssinv;
+			ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
+	// 		ssinv<<tinv[0]<<" "<< tinv[1] << " " << tinv[2] << " " << qinv.w() << " " << qinv.x() << " " << qinv.y() << " " << qinv.z();
+			p_neighbour.put("transform", ss.str());
+			p_neighbour.put("reachable", true);
+	// 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
+			p_neighbour_list.add_child("neighbour", p_neighbour);
+		  
+	}
+	cout << endl;
       p_node.add_child("neighbour_list", p_neighbour_list);
       p_node_list.add_child("node", p_node);
 
@@ -444,36 +503,33 @@ void Map::save(const std::string& filename)
 
 void Map::savewithGlobalPose(const string& filename)
 {
+///##########################
 	cerr<<"saving map begin ID  "<<beginID<<endl;
 	cerr<<"all keyframes "<<mspKeyFrames.size()<<endl;
     boost::property_tree::ptree p_map;
     p_map.put("map.property.node_count", mspKeyFrames.size());
 
     boost::property_tree::ptree p_node_list;
+	int maxKF = mspKeyFrames.size()-1;
+	KeyFrame* endkf = mspKeyFrames[maxKF];
+	bool circle = false;
     for (auto node_it = (mspKeyFrames.begin()); node_it != mspKeyFrames.end(); ++node_it)
     {
       boost::property_tree::ptree p_node;
       p_node.put("id", (*node_it)->mnId);
       p_node.put("inMap", true);	//TEST
-      PM::TransformationParameters pose_matrix = (*node_it)->getPose();
-	Eigen::Isometry3d iso3;
-	iso3 = pose_matrix.block<3,3>(0,0).cast<double>();
-	iso3.translation() = pose_matrix.block<3,1>(0,3).cast<double>();
-	Eigen::Isometry3d T(iso3);
-	Eigen::Quaterniond q(T.rotation());
-	Vector t(T.translation());
-	std::stringstream ss;
-	ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
-	p_node.put("globalPose",ss.str());
 //       p_node.put("id", (*node_it)->mnFrameId);	//TEST frame 改进版
 //       p_node.put("is_Keyframe", true);	//TEST 
       boost::property_tree::ptree p_neighbour_list;
        map<long unsigned int, bool> tempReachable = (*node_it)->neighbours_isReachable;
+	  
+// 	  cout << (*node_it)->mnId <<"-";
       for (auto neighbour_it = (*node_it)->neighbours.begin(); neighbour_it != (*node_it)->neighbours.end(); ++neighbour_it)
       {
 		boost::property_tree::ptree p_neighbour;
 // 		p_neighbour.put("id", mspKeyFrames[neighbour_it->first]->mnFrameId);//TEST 
 		p_neighbour.put("id", neighbour_it->first);
+// 		/*cout*/ << neighbour_it->first <<"-";
 	//         Transform T(neighbour_it->second.cast<double>());
 		PM::TransformationParameters pose_matrix = neighbour_it->second;
 	// 	Eigen::Isometry3d iso3(pose_matrix.cast<double>());
@@ -494,12 +550,72 @@ void Map::savewithGlobalPose(const string& filename)
 		p_neighbour.put("reachable", true);
 // 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
 		p_neighbour_list.add_child("neighbour", p_neighbour);
+		
+		if(((*node_it)->mnId == 0) && (fabs(neighbour_it->first-(*node_it)->mnId) >1)){
+			cout << "circle" << endl;
+			circle = true;
+		}
+		
+		if(((*node_it)->mnId == maxKF) && (fabs(neighbour_it->first-(*node_it)->mnId) >1)){
+			cout << "circle" << endl;
+			circle = true;
+		}
+		
+
       }
+      if(((*node_it)->mnId == 0) && (!circle)){
+		  LOG(WARNING) << "Add false loop to the xml for 0 vertex";
+		  boost::property_tree::ptree p_neighbour;
+		  p_neighbour.put("id", endkf->mnId);
+		  PM::TransformationParameters pose_matrix = endkf->getPose();
+			Eigen::Isometry3d iso3;
+			iso3 = pose_matrix.block<3,3>(0,0).cast<double>();
+			iso3.translation() = pose_matrix.block<3,1>(0,3).cast<double>();
+			Eigen::Isometry3d T(iso3);
+	// 		Transform Tinv = T.inverse();
+
+			Eigen::Quaterniond q(T.rotation());
+			Vector t(T.translation());
+		
+			std::stringstream ss;
+	// 		std::stringstream ssinv;
+			ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
+	// 		ssinv<<tinv[0]<<" "<< tinv[1] << " " << tinv[2] << " " << qinv.w() << " " << qinv.x() << " " << qinv.y() << " " << qinv.z();
+			p_neighbour.put("transform", ss.str());
+			p_neighbour.put("reachable", true);
+	// 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
+			p_neighbour_list.add_child("neighbour", p_neighbour);
+	  }
+	  if(((*node_it)->mnId == maxKF) && (!circle) ){
+		  LOG(WARNING) << "Add false loop to the xml for " << maxKF <<" vertex";
+		  boost::property_tree::ptree p_neighbour;
+		  p_neighbour.put("id", 0);
+		  PM::TransformationParameters pose_matrix = endkf->getPose().inverse();
+			Eigen::Isometry3d iso3;
+			iso3 = pose_matrix.block<3,3>(0,0).cast<double>();
+			iso3.translation() = pose_matrix.block<3,1>(0,3).cast<double>();
+			Eigen::Isometry3d T(iso3);
+	// 		Transform Tinv = T.inverse();
+
+			Eigen::Quaterniond q(T.rotation());
+			Vector t(T.translation());
+		
+			std::stringstream ss;
+	// 		std::stringstream ssinv;
+			ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
+	// 		ssinv<<tinv[0]<<" "<< tinv[1] << " " << tinv[2] << " " << qinv.w() << " " << qinv.x() << " " << qinv.y() << " " << qinv.z();
+			p_neighbour.put("transform", ss.str());
+			p_neighbour.put("reachable", true);
+	// 		bool reachable = p_neighbour_it->second.get<bool>("reachable");
+			p_neighbour_list.add_child("neighbour", p_neighbour);
+		  
+	}
+// 	cout << endl;
       p_node.add_child("neighbour_list", p_neighbour_list);
       p_node_list.add_child("node", p_node);
 
     }
-	cerr<<"saving stage 1"<<endl;
+///##########################
     p_map.add_child("map.node_list", p_node_list);
 
     boost::property_tree::xml_writer_settings<string> setting(' ', 2);
@@ -508,9 +624,12 @@ void Map::savewithGlobalPose(const string& filename)
     string wholeMap = ros::package::getPath("laser_mapping")+"/Map/wholeMap.vtk";
 	string wholeMap_ply = ros::package::getPath("laser_mapping")+"/Map/wholeMap.ply";
 //     cerr<<"1"<<endl;
+	cout <<"save map to "<< wholeMap << endl;
 	cerr<<mWholeMapPoints->features.cols()<<" points"<<endl;
-    mWholeMapPoints->save(wholeMap);
-	mWholeMapPoints->save(wholeMap_ply);
+//     mWholeMapPoints->save(wholeMap);
+// 	mWholeMapPoints->save(wholeMap_ply);
+	cout <<"save map points done"<< endl;
+
 	
 //     cerr<<"2"<<endl;
     //TEST save frames

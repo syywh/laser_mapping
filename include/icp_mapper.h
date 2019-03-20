@@ -247,6 +247,7 @@ public:
 		return cloud_in;
 	}
 	void gotGPSNavSatFix(const sensor_msgs::NavSatFix& gpsMsgIn);
+	void stop();
 	
 protected:
 	void gotScan(const sensor_msgs::LaserScan& scanMsgIn);

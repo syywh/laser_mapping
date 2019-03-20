@@ -43,26 +43,26 @@ void preintegration_opt::Run()
   
   while(ros::ok()){
 	if(checkNewFrames()){
-	      PointMatcherSupport::timer t;
-	      vector<Velodyne_SLAM::Frame*> copyFrames;
-	      {
-		boost::mutex::scoped_lock lock(mMutexProcessFrames);
+		PointMatcherSupport::timer t;
+		vector<Velodyne_SLAM::Frame*> copyFrames;
+		{
+			boost::mutex::scoped_lock lock(mMutexProcessFrames);
 // 		copyFrames = vFrames;
-		copyFrames.assign(vFrames.begin(), vFrames.end());
-		
+			copyFrames.assign(vFrames.begin(), vFrames.end());
+	
 		for(int i = 0; i < copyFrames.size(); i++)
-		  cerr<<copyFrames[i]->mnId<<" ";
+			cerr<<copyFrames[i]->mnId<<" ";
 		cerr<<endl;
 		LOG(INFO)<<"copy size "<<copyFrames.size();
 		Velodyne_SLAM::Frame* endFrame = vFrames.back();
 		vFrames.clear();
 		vFrames.push_back(endFrame);
-	      }
-	      
-	      if(processFrames(copyFrames)){
+		}
+		
+		if(processFrames(copyFrames)){
 		setBiasUpdated(true);
-	      }
-	      cerr<<"optimization took "<<t.elapsed()<<endl;
+		}
+		cerr<<"optimization took "<<t.elapsed()<<endl;
 	  
 	}
 	r.sleep();

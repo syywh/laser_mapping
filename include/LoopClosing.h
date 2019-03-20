@@ -15,7 +15,7 @@
 #include "Optimizer.h"
 #include "IMU/g2otypes.h"
 // #include <g2o/types/slam3d/edge_se3.h>
-
+#include <omp.h>
 
 
 namespace Velodyne_SLAM
@@ -42,6 +42,9 @@ public:
 	void InsertKeyFrame(KeyFrame* pKF);
 	ofstream fLoopClosing;
 	ofstream fLoopClosing_Loop_closing;
+	
+	int checkAllKeyFrameByDistance();
+	int computeICP();
 	
 	bool isUpdate;
 // 	void RequestReset();
@@ -81,6 +84,12 @@ protected:
 	
 	int NumOfClosure;
 	int beginKFId;
+	
+	int thread_num;
+	double distanceCheck;
+	double icpOverlap;
+	
+	vector<pair<int, int> > candidateKFByDistance;
 	
 	
 };
