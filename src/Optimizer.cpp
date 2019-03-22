@@ -280,23 +280,22 @@ bool Optimizer::OptimizePosewithIMU(std::vector< Frame* > pFs, Vector3d& gw, Vec
 	SO3d Rbl = Tbl.so3();
 	Vector3d Pbl = Tbl.translation();
     
-        g2o::SparseOptimizer optimizer;
-        g2o::BlockSolverX::LinearSolverType *linearSolver;
+	g2o::SparseOptimizer optimizer;
+	g2o::BlockSolverX::LinearSolverType *linearSolver;
 
-        linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType>();
+	linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType>();
 
-        g2o::BlockSolverX *solver_ptr = new g2o::BlockSolverX(linearSolver);
+	g2o::BlockSolverX *solver_ptr = new g2o::BlockSolverX(linearSolver);
 
-//         g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton(solver_ptr);
-        g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
-        optimizer.setAlgorithm(solver);
-	
-        const float thHuberNavStatePVR = sqrt(21.666);
-        const float thHuberNavStateBias = sqrt(16.812);
+	g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+	optimizer.setAlgorithm(solver);
+
+	const float thHuberNavStatePVR = sqrt(21.666);
+	const float thHuberNavStateBias = sqrt(16.812);
 
 	
 	vector<g2o::EdgeNavStatePVR *> vpEdgesNavStatePVR;
-        vector<g2o::EdgeNavStateBias *> vpEdgesNavStateBias;
+	vector<g2o::EdgeNavStateBias *> vpEdgesNavStateBias;
 	vector<g2o::EdgeNavStateICP*> vpEdgesNavStateOnlyPose;
 	
 	for(std::vector< Frame* >::iterator vit = pFs.begin(), vend = pFs.end(); vit != vend;vit++ ){
@@ -304,176 +303,192 @@ bool Optimizer::OptimizePosewithIMU(std::vector< Frame* > pFs, Vector3d& gw, Vec
 // 	    LOG(INFO)<<pF->mnId;
 	    int idF = pF->mnId * 2;
 	    
-	    if(pF->mnId == (*(pFs.begin()))->mnId)
-// 	    if(pF->mnId == 0)
+// 	    if(pF->mnId == (*(pFs.begin()))->mnId)
+	    if(pF->mnId == 0)
 	    {
 		// Vertex of PVR
-		{
-		    g2o::VertexNavStatePVR *vNSPVR = new g2o::VertexNavStatePVR();
-		    vNSPVR->setEstimate(pF->GetNavState());
-		    
-// 		    cerr<<pF->GetNavState().Get_P()<<endl
-// 		    <<pF->GetNavState().Get_R().matrix()<<endl
-// 		    <<pF->GetNavState().Get_V()
-// 		    <<pF->GetNavState().Get_BiasAcc()
-// 		    <<pF->GetNavState().Get_BiasGyr()<<endl;
-		    
-		    vNSPVR->setId(idF);
-		    vNSPVR->setFixed(true);
-		    optimizer.addVertex(vNSPVR);
-		}
-		// Vertex of Bias
-		{
-		    g2o::VertexNavStateBias *vNSBias = new g2o::VertexNavStateBias();
-		    vNSBias->setEstimate(pF->GetNavState());
-		    vNSBias->setId(idF + 1);
-		    vNSBias->setFixed(true);
-		    optimizer.addVertex(vNSBias);
-		}
-		continue;
+			{
+				g2o::VertexNavStatePVR *vNSPVR = new g2o::VertexNavStatePVR();
+				vNSPVR->setEstimate(pF->GetNavState());
+				
+	// 		    cerr<<pF->GetNavState().Get_P()<<endl
+	// 		    <<pF->GetNavState().Get_R().matrix()<<endl
+	// 		    <<pF->GetNavState().Get_V()
+	// 		    <<pF->GetNavState().Get_BiasAcc()
+	// 		    <<pF->GetNavState().Get_BiasGyr()<<endl;
+				
+				vNSPVR->setId(idF);
+				vNSPVR->setFixed(true);
+				optimizer.addVertex(vNSPVR);
+			}
+			// Vertex of Bias
+			{
+				g2o::VertexNavStateBias *vNSBias = new g2o::VertexNavStateBias();
+				vNSBias->setEstimate(pF->GetNavState());
+				vNSBias->setId(idF + 1);
+				vNSBias->setFixed(true);
+				optimizer.addVertex(vNSBias);
+			}
+			continue;
 	    }
 	
-            // Vertex of PVR
-            {
-                g2o::VertexNavStatePVR *vNSPVR = new g2o::VertexNavStatePVR();
-                vNSPVR->setEstimate(pF->GetNavState());
-                vNSPVR->setId(idF);
-                vNSPVR->setFixed(false);
+		// Vertex of PVR
+		{
+			g2o::VertexNavStatePVR *vNSPVR = new g2o::VertexNavStatePVR();
+			vNSPVR->setEstimate(pF->GetNavState());
+			vNSPVR->setId(idF);
+			vNSPVR->setFixed(false);
 // 		    cerr<<pF->mnId<<endl<<"pose: "<<pF->GetNavState().Get_P().transpose()<<endl
 // 		    <<pF->GetNavState().Get_R().matrix()<<endl
 // 		    <<"velo: "<<pF->GetNavState().Get_V().transpose()<<endl
 // 		    <<"ba: "<<pF->GetNavState().Get_BiasAcc().transpose()<<endl
 // 		    <<"bg: "<<pF->GetNavState().Get_BiasGyr().transpose()<<endl;
-                optimizer.addVertex(vNSPVR);
-            }
-            // Vertex of Bias
-            {
-                g2o::VertexNavStateBias *vNSBias = new g2o::VertexNavStateBias();
-                vNSBias->setEstimate(pF->GetNavState());
-                vNSBias->setId(idF + 1);
-                vNSBias->setFixed(false);
-                optimizer.addVertex(vNSBias);
-            }
+			optimizer.addVertex(vNSPVR);
+		}
+		// Vertex of Bias
+		{
+			g2o::VertexNavStateBias *vNSBias = new g2o::VertexNavStateBias();
+			vNSBias->setEstimate(pF->GetNavState());
+			vNSBias->setId(idF + 1);
+			vNSBias->setFixed(false);
+			optimizer.addVertex(vNSBias);
+		}
 	}
 	
-        Matrix<double, 6, 6> InvCovBgaRW = Matrix<double, 6, 6>::Identity();
-        InvCovBgaRW.topLeftCorner(3, 3) =
-                Matrix3d::Identity() / IMUData::getGyrBiasRW2();       // Gyroscope bias random walk, covariance INVERSE
-        InvCovBgaRW.bottomRightCorner(3, 3) =
-                Matrix3d::Identity() / IMUData::getAccBiasRW2();   // Accelerometer bias random walk, covariance INVERSE
+	Matrix<double, 6, 6> InvCovBgaRW = Matrix<double, 6, 6>::Identity();
+	InvCovBgaRW.topLeftCorner(3, 3) =
+			Matrix3d::Identity() / IMUData::getGyrBiasRW2();       // Gyroscope bias random walk, covariance INVERSE
+	InvCovBgaRW.bottomRightCorner(3, 3) =
+			Matrix3d::Identity() / IMUData::getAccBiasRW2();   // Accelerometer bias random walk, covariance INVERSE
 		
 	float HuberKernel = 12.59;
 	float thHuber_ = sqrt(HuberKernel);
 	
 	// add edges
-        for (int ei = 1; ei < pFs.size(); ei++) {
+	//1. add priori
+	Frame* pF_first = pFs[0];
+// 	Frame* frame_before_first = pF_first->previousF;
+	if(pF_first->getMarginal()){
+		g2o::EdgePrioriNavStatePVRBias* epriori = new g2o::EdgePrioriNavStatePVRBias();
+		epriori->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF_first->mnId)));
+		epriori->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF_first->mnId + 1)));
+		
+		epriori->setMeasurement(pF_first->GetNavState());
+		epriori->setInformation(pF_first->getMarginalizedInfo());
+		
+		g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+		epriori->setRobustKernel(rk);
+		rk->setDelta(thHuberNavStatePVR);
+		
+		optimizer.addEdge(epriori);
+	}
+	
+	
+	for (int ei = 1; ei < pFs.size(); ei++) {
 	    
-	    if(pFs[ei]->mnId == 0)
-	      continue;
 	  
-            Frame *pF1 = pFs[ei];                      // Current KF, store the IMU pre-integration between previous-current
-            Frame *pF0 = pFs[ei-1];   // Previous KF
+		Frame *pF1 = pFs[ei];                      // Current KF, store the IMU pre-integration between previous-current
+		Frame *pF0 = pFs[ei-1];   // Previous KF
 
-            cout<<"previous "<<pF0->mnId<<" current "<<pF1->mnId<<endl;
-            // PVR edge
-            {
-                g2o::EdgeNavStatePVR *epvr = new g2o::EdgeNavStatePVR();
-                epvr->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId)));
-                epvr->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF1->mnId)));
-                epvr->setVertex(2, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId + 1)));
-                epvr->setMeasurement(pF1->GetIMUPreint());
+		cout<<"previous "<<pF0->mnId<<" current "<<pF1->mnId<<endl;
+		// PVR edge
+		{
+			g2o::EdgeNavStatePVR *epvr = new g2o::EdgeNavStatePVR();
+			epvr->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId)));
+			epvr->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF1->mnId)));
+			epvr->setVertex(2, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId + 1)));
+			epvr->setMeasurement(pF1->GetIMUPreint());
+
+			cout<<"pre:\n"<<pF1->GetIMUPreint().getDeltaR()<<endl<<pF1->GetIMUPreint().getDeltaP()<<endl;
+			NavState n0 = pF0->GetNavState();
+			NavState n1 = pF1->GetNavState();
+			cout<<"Nav\n"<<(n0.Get_R().inverse() * n1.Get_R()).matrix()<<endl
+			<<(n0.Get_R().inverse()*(n1.Get_P() - n0.Get_P())).transpose()<<endl;
+
+			Matrix9d InvCovPVR = pF1->GetIMUPreint().getCovPVPhi().inverse();
+
+			epvr->setInformation(InvCovPVR);
+			epvr->SetParams(GravityVec);
+
+			g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+			epvr->setRobustKernel(rk);
+			rk->setDelta(thHuberNavStatePVR);
+
+			optimizer.addEdge(epvr);
+			vpEdgesNavStatePVR.push_back(epvr);
 		
-		cout<<"pre:\n"<<pF1->GetIMUPreint().getDeltaR()<<endl<<pF1->GetIMUPreint().getDeltaP()<<endl;
-		NavState n0 = pF0->GetNavState();
-		NavState n1 = pF1->GetNavState();
-		cout<<"Nav\n"<<(n0.Get_R().inverse() * n1.Get_R()).matrix()<<endl
-		<<(n0.Get_R().inverse()*(n1.Get_P() - n0.Get_P())).transpose()<<endl;
-
-                Matrix9d InvCovPVR = pF1->GetIMUPreint().getCovPVPhi().inverse();
-// 		cout<<InvCovPVR<<endl;
-                epvr->setInformation(InvCovPVR);
-                epvr->SetParams(GravityVec);
-
-                g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                epvr->setRobustKernel(rk);
-                rk->setDelta(thHuberNavStatePVR);
-
-                optimizer.addEdge(epvr);
-                vpEdgesNavStatePVR.push_back(epvr);
-		
-            }
+		}
             
-            //icp edge
-            {
-	      g2o::EdgeNavStateICP* epp = new g2o::EdgeNavStateICP();
-	      epp->setTbl(vill::ConfigParam::GetSE3Tbl());
-	      epp->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(2*pF0->mnId)));
-	      epp->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(2*pF1->mnId)));
-	      PM::TransformationParameters deltaT = pF0->GetGlobalPose().inverse() * pF1->GetGlobalPose();
-	      epp->setMeasurement(SE3d(deltaT.cast<double>()));
-	      cerr<<"icpT\n"<<vill::ConfigParam::GetEigTbl().cast<float>() * deltaT * vill::ConfigParam::GetEigTbl().inverse().cast<float>()<<endl;
-	      Matrix6d info = (Matrix6d::Identity()*100000000);
-	      
-	      epp->setInformation(info);
-	      
-	      g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-	      epp->setRobustKernel(rk);
-	      rk->setDelta(thHuber_);
-	      
-	      optimizer.addEdge(epp);
-	      vpEdgesNavStateOnlyPose.push_back(epp);
+		//icp edge
+		{
+			g2o::EdgeNavStateICP* epp = new g2o::EdgeNavStateICP();
+			epp->setTbl(vill::ConfigParam::GetSE3Tbl());
+			epp->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(2*pF0->mnId)));
+			epp->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(2*pF1->mnId)));
+			PM::TransformationParameters deltaT = pF0->GetGlobalPose().inverse() * pF1->GetGlobalPose();
+			epp->setMeasurement(SE3d(deltaT.cast<double>()));
+// 			cerr<<"icpT\n"<<vill::ConfigParam::GetEigTbl().cast<float>() * deltaT * vill::ConfigParam::GetEigTbl().inverse().cast<float>()<<endl;
+			Matrix6d info = (Matrix6d::Identity()*1000);
+			
+			epp->setInformation(info);
+			
+			g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+			epp->setRobustKernel(rk);
+			rk->setDelta(thHuber_);
+			
+			optimizer.addEdge(epp);
+			vpEdgesNavStateOnlyPose.push_back(epp);
 	    }
-            // Bias edge
-            {
-                g2o::EdgeNavStateBias *ebias = new g2o::EdgeNavStateBias();
-                ebias->setVertex(0,
-                                 dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId + 1)));
-                ebias->setVertex(1,
-                                 dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF1->mnId + 1)));
-                ebias->setMeasurement(pF1->GetIMUPreint());
+		// Bias edge
+		{
+			g2o::EdgeNavStateBias *ebias = new g2o::EdgeNavStateBias();
+			ebias->setVertex(0,
+								dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF0->mnId + 1)));
+			ebias->setVertex(1,
+								dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(2 * pF1->mnId + 1)));
+			ebias->setMeasurement(pF1->GetIMUPreint());
 
-                ebias->setInformation(InvCovBgaRW / pF1->GetIMUPreint().getDeltaTime());
+			ebias->setInformation(InvCovBgaRW / pF1->GetIMUPreint().getDeltaTime());
 
-                g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                ebias->setRobustKernel(rk);
-                rk->setDelta(thHuberNavStateBias);
+			g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+			ebias->setRobustKernel(rk);
+			rk->setDelta(thHuberNavStateBias);
 
-                optimizer.addEdge(ebias);
-                vpEdgesNavStateBias.push_back(ebias);
-            }
+			optimizer.addEdge(ebias);
+			vpEdgesNavStateBias.push_back(ebias);
+		}
 
-        }
+	}
         
-        //add graph add edges
-        optimizer.initializeOptimization();
+        
+	optimizer.initializeOptimization();
 	optimizer.optimize(10);
         
 	//recovery
 	int update = 0;
 	for(int ei = 0; ei < pFs.size(); ei++){
-            Frame *pFi = pFs[ei];
-            g2o::VertexNavStatePVR *vNSPVR = static_cast<g2o::VertexNavStatePVR *>(optimizer.vertex(2 * pFi->mnId));
-            g2o::VertexNavStateBias *vNSBias = static_cast<g2o::VertexNavStateBias *>(optimizer.vertex(
-                    2 * pFi->mnId + 1));
-            // In optimized navstate, bias not changed, delta_bias not zero, should be added to bias
-            const NavState &optPVRns = vNSPVR->estimate();
-            const NavState &optBiasns = vNSBias->estimate();
-	    
-            // Update NavState
-            pFi->SetNavStatePos(optPVRns.Get_P());
-            pFi->SetNavStateVel(optPVRns.Get_V());
-            pFi->SetNavStateRot(optPVRns.Get_R());
-	    cout<<"v: "<<optPVRns.Get_V().transpose()<<endl;
-            if(optBiasns.Get_dBias_Acc().norm()<1/*e-2*/ && optBiasns.Get_dBias_Gyr().norm()<1/*e-2*/)
-            { 
-	      
-	      pFi->SetNavStateDeltaBg(optBiasns.Get_dBias_Gyr());
-	      pFi->SetNavStateDeltaBa(optBiasns.Get_dBias_Acc());
-	      cout<<pFi->mnId <<" "<<optBiasns.Get_dBias_Gyr().transpose()<<" "<<optBiasns.Get_dBias_Acc().transpose()<<endl;
-	      update = ei;
-	    }else{
-	      cout<<"failed to update dbias "<<pFi->mnId <<" "<<optBiasns.Get_dBias_Gyr().transpose()<<" "<<optBiasns.Get_dBias_Acc().transpose()<<endl;
-	    }
+		Frame *pFi = pFs[ei];
+		g2o::VertexNavStatePVR *vNSPVR = static_cast<g2o::VertexNavStatePVR *>(optimizer.vertex(2 * pFi->mnId));
+		g2o::VertexNavStateBias *vNSBias = static_cast<g2o::VertexNavStateBias *>(optimizer.vertex(
+				2 * pFi->mnId + 1));
+		// In optimized navstate, bias not changed, delta_bias not zero, should be added to bias
+		const NavState &optPVRns = vNSPVR->estimate();
+		const NavState &optBiasns = vNSBias->estimate();
+	
+		// Update NavState
+		pFi->SetNavStatePos(optPVRns.Get_P());
+		pFi->SetNavStateVel(optPVRns.Get_V());
+		pFi->SetNavStateRot(optPVRns.Get_R());
+// 	    cout<<"v: "<<optPVRns.Get_V().transpose()<<endl;
+		if(optBiasns.Get_dBias_Acc().norm()<1/*e-2*/ && optBiasns.Get_dBias_Gyr().norm()<1/*e-2*/)
+		{ 
+			pFi->SetNavStateDeltaBg(optBiasns.Get_dBias_Gyr());
+			pFi->SetNavStateDeltaBa(optBiasns.Get_dBias_Acc());
+			cout<<pFi->mnId <<" "<<optBiasns.Get_dBias_Gyr().transpose()<<" "<<optBiasns.Get_dBias_Acc().transpose()<<endl;
+			update = ei;
+		}else{
+			cout<<"failed to update dbias "<<pFi->mnId <<" "<<optBiasns.Get_dBias_Gyr().transpose()<<" "<<optBiasns.Get_dBias_Acc().transpose()<<endl;
+		}
 	    // Update pose Tcw
 //             pFi->UpdatePoseFromNS(Tbl);
 	   
@@ -483,9 +498,9 @@ bool Optimizer::OptimizePosewithIMU(std::vector< Frame* > pFs, Vector3d& gw, Vec
 	dbiasg = pFs[update]->GetNavState().Get_dBias_Gyr();
 	int num = pFs.size();
 	velo = pFs[update]->GetNavState().Get_V();
-	lastF->UpdateNavStatePVRFromTwc(SE3d(lastF->GetGlobalPose().cast<double>()), vill::ConfigParam::GetSE3Tbl());
+// 	lastF->UpdateNavStatePVRFromTwc(SE3d(lastF->GetGlobalPose().cast<double>()), vill::ConfigParam::GetSE3Tbl());
 	
-	{
+// 	{
 // 	      Vector3d gw_refine;
 // 	      VectorXd x;
 // 	      list<KeyFrame *> lInitKFs = lLocalKeyFrames;
@@ -494,7 +509,23 @@ bool Optimizer::OptimizePosewithIMU(std::vector< Frame* > pFs, Vector3d& gw, Vec
 // 	      LOG(INFO)<<"gw\n"<<gw_refine.transpose();
 // 	      LinearAlignment(lInitKFs, gw_refine, x);
 // 	      pLM->setGravityVec(gw_refine);
-	}
+// 	}
+	
+	std::vector<g2o::OptimizableGraph::Vertex *> margVerteces;
+	margVerteces.push_back(optimizer.vertex(2 * (pF_first->mnId)));
+	margVerteces.push_back(optimizer.vertex(2 * (pF_first->mnId) + 1 ));
+
+	//TODO: how to get the joint marginalized covariance of PVR&Bias
+// 	g2o::SparseBlockMatrixXd spinv;
+// 	optimizer.computeMarginals(spinv, margVerteces);
+// // 	// spinv include 2 blocks, 9x9-(0,0) for PVR, 6x6-(1,1) for Bias
+// 	Matrix<double, 15, 15> margCovInv = Matrix<double, 15, 15>::Zero();
+// 	margCovInv.topLeftCorner(9, 9) = spinv.block(0, 0)->inverse();
+// 	margCovInv.bottomRightCorner(6, 6) = spinv.block(1, 1)->inverse();
+// 	pFrame->mMargCovInv = margCovInv;
+// 	pFrame->mNavStatePrior = ns_recov;
+	
+	pFs[1]->setMarginal(true);
         
 	LOG(INFO)<<"Opt with IMU : "<<t.elapsed();
 }

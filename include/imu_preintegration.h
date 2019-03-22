@@ -13,6 +13,7 @@
 #include "pointmatcher_ros/transform.h"
 
 #include "IMU/IMUPreintegrator.h"
+#include "IMU/NavState.h"
 // #include "thread"
 // #include "preintegration_opt.h"
 
@@ -88,6 +89,10 @@ namespace LIV{
 
     list<PM::TransformationParameters> vT_laser_imu;
     list<double> vT_times;
+	vector<vill::NavState>  v_NavStates;
+	vector<vill::IMUData> lIMUdata;
+	
+	void updateNavState(vill::NavState& oriNavState, vill::NavState& newNavState,const vill::IMUPreintegrator &imupreint);
     
 
     
@@ -98,7 +103,7 @@ namespace LIV{
     
     void getGyroMsg(Eigen::Vector3d & gw, double time);
     
-    vector<vill::IMUData> lIMUdata;
+    
     vill::IMUPreintegrator imupreintegrator;
     tf::TransformBroadcaster tfBroadcaster;
     PM::TransformationParameters T, Tcur;

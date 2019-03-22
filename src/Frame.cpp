@@ -9,19 +9,24 @@ namespace Velodyne_SLAM {
 long unsigned int Frame::nNextId=0;
 
 Frame::Frame()
-{}
+{
+	marginalized_info = Matrix<double,15,15>::Identity();
+}
 
 Frame::Frame(const Frame& frame):mstamp(frame.mstamp),mFrameMapPoints(frame.mFrameMapPoints),mLocalTicp(frame.mLocalTicp),
-mnId(frame.mnId),processed(false)
+mnId(frame.mnId),processed(false),marginal(false)
 {
+	marginalized_info = Matrix<double,15,15>::Identity();
 }
 
 
 Frame::Frame(const ros::Time& stamp, Frame::DP* frameMapPoints, const PM::TransformationParameters pTicp, bool iskeyframe):mstamp(stamp), 
 mFrameMapPoints(frameMapPoints)
-, mLocalTicp(pTicp), isKeyFrame(iskeyframe),processed(false)
+, mLocalTicp(pTicp), isKeyFrame(iskeyframe),processed(false),marginal(false)
 {
 	mnId=nNextId++;
+	
+	marginalized_info = Matrix<double,15,15>::Identity();
 }
 
 bool Frame::IsKF()
@@ -190,6 +195,13 @@ void Frame::UpdateNavStatePVRFromTwc(const SE3d &Twc, const SE3d &Tbc) {
 	}
     }
     
+void Frame::setNavState(vill::NavState& navstate)
+{
+	mNavState = navstate;
+
+}
+    
+
 void Frame::SetNavStatePos(const Vector3d& pos)
 {
   boost::mutex::scoped_lock lock(mMutexNavState);

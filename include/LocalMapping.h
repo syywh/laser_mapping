@@ -40,6 +40,8 @@ public:
 	bool AcceptFrames();
 	void SetAcceptFrames(bool flag);
 	bool ProcessLocalMap();
+	void CreateNewKeyFrames();
+	bool CheckNewFrames();
 	void ProcessSlidingMap();
 	void DivideCloud(Frame* pFrame);
 	int getLocalMapPointsNumber();
@@ -90,8 +92,8 @@ public:
 	void setProcessedOneFrame(bool flag);
 	
 private:
-	bool CheckNewFrames();
-	void CreateNewKeyFrames();
+	
+	
 
 	
 	int NumOfList;

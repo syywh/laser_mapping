@@ -40,6 +40,8 @@ public:
 	
 	void Run();
 	void InsertKeyFrame(KeyFrame* pKF);
+	
+	void run_offline();
 	ofstream fLoopClosing;
 	ofstream fLoopClosing_Loop_closing;
 	

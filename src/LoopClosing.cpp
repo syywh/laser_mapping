@@ -106,6 +106,14 @@ void LoopClosing::Run()
 	}
 }
 
+void LoopClosing::run_offline()
+{
+	DetectLoop();
+	mLastProcessedKFId = mpCurrentKF->mnFrameId;
+
+}
+
+
 bool LoopClosing::CheckNewKeyFrames()
 {
 	boost::mutex::scoped_lock lock(mMutexLoopQueue);
@@ -115,7 +123,8 @@ bool LoopClosing::CheckNewKeyFrames()
 void LoopClosing::InsertKeyFrame(KeyFrame* pKF)
 {
 	boost::mutex::scoped_lock lock(mMutexLoopQueue);
-	if(pKF->mnId != 0)
+	
+// 	if(pKF->mnId != 0)
 	{
 // 	  cerr<<"[loop closing]<<InsertKeyFrame"<<endl;
 		mlpLoopKeyFrameQueue.push_back(pKF);

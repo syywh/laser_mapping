@@ -62,6 +62,68 @@ namespace g2o {
 
   }
   
+	void EdgePrioriNavStatePVRBias::computeError()
+	{
+        const VertexNavStatePVR *vNSPVR = static_cast<const VertexNavStatePVR *>(_vertices[0]);
+        const VertexNavStateBias *vNSBias = static_cast<const VertexNavStateBias *>(_vertices[1]);
+        const NavState &nsPVRest = vNSPVR->estimate();
+        const NavState &nsBiasest = vNSBias->estimate();
+        const NavState &nsprior = _measurement;
+
+        // P V R bg+dbg ba+dba
+        Vector15d err = Vector15d::Zero();
+        // PVR terms
+        Sophus::SO3d Riprior_inv = nsprior.Get_R().inverse();
+        // eP = R_prior^-1*(P_est - P_prior) --not <eP = P_prior - P_est>--
+        err.segment<3>(0) = Riprior_inv * (nsPVRest.Get_P() - nsprior.Get_P());
+        // eV = (V_est - V_prior) --not <V_prior - V_est>--
+        err.segment<3>(3) = (nsPVRest.Get_V() - nsprior.Get_V());
+        // eR = log(R_prior^-1 * R_est)
+        err.segment<3>(6) = (Riprior_inv * nsPVRest.Get_R()).log();
+
+        // Bias terms
+        // eB = Bias_prior - Bias_est
+        // err_bg = (bg_prior+dbg_prior) - (bg+dbg)
+        err.segment<3>(9) = (nsprior.Get_BiasGyr() + nsprior.Get_dBias_Gyr()) -
+                            (nsBiasest.Get_BiasGyr() + nsBiasest.Get_dBias_Gyr());
+        // err_ba = (ba_prior+dba_prior) - (ba+dba)
+        err.segment<3>(12) = (nsprior.Get_BiasAcc() + nsprior.Get_dBias_Acc()) -
+                             (nsBiasest.Get_BiasAcc() + nsBiasest.Get_dBias_Acc());
+
+        _error = err;
+
+        //Test log
+        if ((nsPVRest.Get_BiasGyr() - nsBiasest.Get_BiasGyr()).norm() > 1e-6 ||
+            (nsPVRest.Get_BiasAcc() - nsBiasest.Get_BiasAcc()).norm() > 1e-6) {
+            std::cerr << "bias gyr not equal for PVR/Bias vertex in EdgeNavStatePriorPVRBias" << std::endl
+                      << nsPVRest.Get_BiasGyr().transpose() << " / " << nsBiasest.Get_BiasGyr().transpose()
+                      << std::endl;
+            std::cerr << "bias acc not equal for PVR/Bias vertex in EdgeNavStatePriorPVRBias" << std::endl
+                      << nsPVRest.Get_BiasAcc().transpose() << " / " << nsBiasest.Get_BiasAcc().transpose()
+                      << std::endl;
+        }
+	}
+	
+	void EdgePrioriNavStatePVRBias::linearizeOplus()
+	{
+        // Estimated NavState
+        const VertexNavStatePVR *vPVR = static_cast<const VertexNavStatePVR *>(_vertices[0]);
+        const NavState &nsPVRest = vPVR->estimate();
+        const NavState &nsprior = _measurement;
+
+        _jacobianOplusXi = Matrix<double, 15, 9>::Zero();
+        _jacobianOplusXi.block<3, 3>(0, 0) = (nsprior.Get_R().inverse() * nsPVRest.Get_R()).matrix();
+        _jacobianOplusXi.block<3, 3>(3, 3) = Matrix3d::Identity();
+        _jacobianOplusXi.block<3, 3>(6, 6) = Sophus::SO3::JacobianRInv(_error.segment<3>(6));
+
+        _jacobianOplusXj = Matrix<double, 15, 6>::Zero();
+        _jacobianOplusXj.block<3, 3>(9, 0) = -Matrix3d::Identity();
+        _jacobianOplusXj.block<3, 3>(12, 3) = -Matrix3d::Identity();
+	
+	}
+
+
+  
     void EdgeNavStatePVR::computeError() {
         //
         const VertexNavStatePVR *vPVRi = static_cast<const VertexNavStatePVR *>(_vertices[0]);

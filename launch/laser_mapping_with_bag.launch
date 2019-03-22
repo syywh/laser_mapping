@@ -23,7 +23,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 
 	<param name="/use_sim_time" value="false"/>
 	<node name="laser_mapping_with_bag" type="laser_mapping_with_bag" pkg="laser_mapping" output="screen" >
-		<param name="bagname" value="/media/dxq/D/projects/cherry/ww/wf.bag"/>
+		<param name="bagname" value="/media/dxq/D/projects/cherry/ww/we.bag"/>
 		<param name="TASK" value="without_map"/>
 		<param name="reSLAM_refKFID" value="9"/>
 		<param name="BeginID" value="0"/>
@@ -40,8 +40,8 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="image_msg_name" value="/camera/left/image_rect_color" />
 		<param name="gps_msg_name" value="/fix" />
 
-		<param name="MapSavingFile" value="/media/dxq/D/projects/cherry/ww/frames_wf/map_wf.xml"/>
-		<param name="FramesSavingPath" value="/media/dxq/D/projects/cherry/ww/frames_wf/"/>
+		<param name="MapSavingFile" value="/media/dxq/D/multi_sensor_mapping/vo/0823/laser_submaps/frames/map_we.xml"/>
+		<param name="FramesSavingPath" value="/media/dxq/D/multi_sensor_mapping/vo/0823/laser_submaps/frames/"/>
 		
 		<param name="MapReadingFile" value="$(find laser_mapping)/KeyFrame/map_smallspace.xml"/>
 		<param name="FramesReadingPath" value="$(find laser_mapping)/KeyFrame/frames/"/>
@@ -50,7 +50,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="refinefile" value="$(find laser_mapping)/cfg/refine.txt"/>
 		<param name="extrinsicTBC" value="$(find laser_mapping)/cfg/extrinsicTBC.txt"/>
 
-		<param name="use_imu" value="false" />
+		<param name="use_imu" value="true" />
 		<param name="use_odom" value="false" />
 		<param name="use_velo_Twist" value="false" />
 		<param name="use_gps" value="true" />

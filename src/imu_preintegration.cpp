@@ -63,6 +63,7 @@ imu_preintegration::imu_preintegration(ros::NodeHandle& nh):
   Tcur = PM::TransformationParameters::Identity(4,4);
   
   imu_pub = n.advertise<nav_msgs::Odometry>("imu_odom", 50, true);
+  v_NavStates.clear();
 //   CoarseInitializationThread = new std::thread(&imu_preintegration::CoarseInitialization, this);
 }
 
@@ -169,10 +170,10 @@ void imu_preintegration::addIMUMsg(const sensor_msgs::Imu& imuMsgIn)
 			  imuMsgIn.linear_acceleration.x,imuMsgIn.linear_acceleration.y,imuMsgIn.linear_acceleration.z,
 			  imuMsgIn.header.stamp.toSec());
     if(lIMUdata.size() > 3){
-      if((fabs(imudata._g(0)-lIMUdata.back()._g(0)) > 0.015 )|| 
-  	    (fabs(imudata._g(1)-lIMUdata.back()._g(1)) > 0.015 ) ||
-      	(fabs(imudata._g(2)-lIMUdata.back()._g(2)) > 0.015) || 
-      	(imudata._t - lIMUdata.front()._t) > 5){
+      if(((fabs(imudata._a(0)-lIMUdata.back()._a(0)) > 0.1 )|| 
+  	    (fabs(imudata._a(1)-lIMUdata.back()._a(1)) > 0.1 ) ||
+      	(fabs(imudata._a(2)-lIMUdata.back()._a(2)) > 0.1)) &&  //TEST FIXME TODO 是否确定停3秒？
+      	((imudata._t - lIMUdata.front()._t) > 3)){
     	
       	CoarseInitialization();
             
@@ -189,6 +190,19 @@ void imu_preintegration::addIMUMsg(const sensor_msgs::Imu& imuMsgIn)
       	
       	LOG(INFO)<<"Gravity:\n"<<mGravity;
       	LOG(INFO)<<"curGravity\n"<<initialrotation * mGravity;
+		
+		//recompute the integration
+		imupreintegrator.reset();
+		lIMUdata.clear();// keep the vector of lIMUdata the same as v_NavStates
+
+		
+		vill::NavState pNavState(imudata._t);
+		pNavState.Set_BiasAcc(biasa);
+		pNavState.Set_BiasGyr(biasg);
+		pNavState.Set_Rot(initialrotation.inverse());
+		v_NavStates.push_back(pNavState);
+		cout << "Initial imu rot " << pNavState.Get_R().matrix() << endl;
+		
       	setCoarseInitialized(true);
       	
       	//T^n_b0
@@ -213,46 +227,46 @@ void imu_preintegration::addIMUMsg(const sensor_msgs::Imu& imuMsgIn)
 	  
 	  vill::IMUData imudata(imuMsgIn.angular_velocity.x,imuMsgIn.angular_velocity.y,imuMsgIn.angular_velocity.z,
 			  ax,ay,az,imuMsgIn.header.stamp.toSec());
-	  PM::TransformationParameters curTT = getCurLaserPose().inverse();
-// 	  cout<<imuMsgIn.header.stamp<<endl;
-	  if(!init){
-	      {
-    		  boost::mutex::scoped_lock lock(mMutexIMUPreint);
-    		  lIMUdata.clear();////TEST whether add the time of last frame 按照统计来说，是不是补一个平均值
-    		  lIMUdata.push_back(imudata);
-    		  imupreintegrator.reset();
-		  
-	      }
-	      init = true;
-	  }else{
-	    Vector3d _biasg = getBiasa();
-	    Vector3d _biasa = getBiasg();
-	    Vector3f velInLaserFrame = getVel();
+// 	  PM::TransformationParameters curTT = getCurLaserPose().inverse();
 
-	    {
-	      boost::mutex::scoped_lock lock(mMutexIMUPreint);
-	      double dt = imudata._t - lIMUdata.back()._t;
-	      double dt_all = imudata._t- lIMUdata.front()._t;
-	      lIMUdata.push_back(imudata);
-	      imupreintegrator.update(imudata._g-_biasg, imudata._a-_biasa, dt);
-// 	      Vector3d gw = mppreintegration_opter->getGravity();
-	      T.block<3,1>(0,3) = imupreintegrator.getDeltaP().cast<float>() ;
-	      T.block<3,3>(0,0) = imupreintegrator.getDeltaR().cast<float>();
-	      T = Tlb * T; 
-	      
-	      T.block<3,1>(0,3) += /*(curT.block<3,3>(0,0) * (velInLaserFrame * (float)(dt_all)) )
-	      +*/ curTT.block<3,3>(0,0) * (0.5 * mGravity * dt_all *dt_all).cast<float>() ;
-	    }
-	      
-	      //tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>( T, laserFrame, imuFrame, imuMsgIn.header.stamp));
-	      //imu_pub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(curTT.inverse()*T, mapFrame, imuMsgIn.header.stamp));
-	      tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>( T, laserFrame, imuFrame, ros::Time::now()));
-        vT_laser_imu.push_back(T);
-        vT_times.push_back(imuMsgIn.header.stamp.toSec());
-        imu_pub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(curTT.inverse()*T, mapFrame, ros::Time::now()));
-        
+	  Vector3d _biasg = getBiasa();
+	  Vector3d _biasa = getBiasg();
+	  Vector3f velInLaserFrame = getVel();
+
+// 	    {
+// 	      boost::mutex::scoped_lock lock(mMutexIMUPreint);
+	  double dt = imudata._t - lIMUdata.back()._t;
+
+	  lIMUdata.push_back(imudata);
+	  imupreintegrator.update(imudata._g-_biasg, imudata._a-_biasa, dt);
+		
+	  vill::NavState newNavState(imudata._t);
+
+	  updateNavState(v_NavStates.front(), newNavState, imupreintegrator);
+	  newNavState.Set_BiasAcc(biasa);
+	  newNavState.Set_BiasGyr(biasg);
+
+// 	  imupreintegrator.reset();
+		
+	  PM::TransformationParameters currentIMUState = PM::TransformationParameters::Identity(4,4);
+	  currentIMUState.block<3,3>(0,0) = newNavState.Get_R().matrix().cast<float>();
+	  currentIMUState.block<3,1>(0,3) = newNavState.Get_P().cast<float>();
+		
+	  v_NavStates.push_back(newNavState);
+		
+
+// 	    }
+		
+	//tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>( T, laserFrame, imuFrame, imuMsgIn.header.stamp));
+	//imu_pub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(curTT.inverse()*T, mapFrame, imuMsgIn.header.stamp));
+// 		tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>( T, laserFrame, imuFrame, ros::Time::now()));
+// 		vT_laser_imu.push_back(T); // we can save Vector6d
+//      vT_times.push_back(imuMsgIn.header.stamp.toSec());
+	  imu_pub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(currentIMUState, mapFrame, ros::Time::now()));
+	cout <<"get imu data at " << imudata._t-lIMUdata.front()._t << endl<<newNavState.Get_P().transpose() <<
+	endl << newNavState.Get_V().transpose()<< endl << newNavState.Get_R().matrix() << endl;
        
-	  }
+// 	  }
   }
 // 	  LOG(INFO)<<t.elapsed();
 }
@@ -386,6 +400,28 @@ void imu_preintegration::setBiasUpdated(bool flag)
   biasUpdated = flag;
 }
 
+void imu_preintegration::updateNavState(NavState& oriNavState, NavState& newNavState, 
+										const IMUPreintegrator& imupreint)
+{
+	
+        Matrix3d dR = imupreint.getDeltaR();
+        Vector3d dP = imupreint.getDeltaP();
+        Vector3d dV = imupreint.getDeltaV();
+        double dt = imupreint.getDeltaTime();
+
+        Vector3d Pwbpre = oriNavState.Get_P();
+        Matrix3d Rwbpre = oriNavState.Get_RotMatrix();
+        Vector3d Vwbpre = oriNavState.Get_V();
+
+        Matrix3d Rwb = Rwbpre * dR;
+        Vector3d Pwb = Pwbpre + Vwbpre * dt + 0.5 * gw * dt * dt + Rwbpre * dP;
+        Vector3d Vwb = Vwbpre + gw * dt + Rwbpre * dV;
+
+        // Here assume that the pre-integration is re-computed after bias updated, so the bias term is ignored
+        newNavState.Set_Pos(Pwb);
+        newNavState.Set_Vel(Vwb);
+        newNavState.Set_Rot(Rwb);
+}
 
   
 }

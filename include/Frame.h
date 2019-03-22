@@ -73,22 +73,23 @@ public:
 	void UpdateNavStatePVRFromTwc(const SE3d &Twc, const SE3d &Tbc);
 	const vill::NavState &GetNavState(void);
 	
+	void setNavState(vill::NavState& navstate);
 	
-        void SetNavStateVel(const Vector3d &vel);
+	void SetNavStateVel(const Vector3d &vel);
 
-        void SetNavStatePos(const Vector3d &pos);
+	void SetNavStatePos(const Vector3d &pos);
 
-        void SetNavStateRot(const Matrix3d &rot);
+	void SetNavStateRot(const Matrix3d &rot);
 
-        void SetNavStateRot(const SO3d & rot);
+	void SetNavStateRot(const SO3d & rot);
 
-        void SetNavStateBiasGyr(const Vector3d &bg);
+	void SetNavStateBiasGyr(const Vector3d &bg);
 
-        void SetNavStateBiasAcc(const Vector3d &ba);
+	void SetNavStateBiasAcc(const Vector3d &ba);
 
-        void SetNavStateDeltaBg(const Vector3d &dbg);
+	void SetNavStateDeltaBg(const Vector3d &dbg);
 
-        void SetNavStateDeltaBa(const Vector3d &dba);
+	void SetNavStateDeltaBa(const Vector3d &dba);
 	
 	void UpdatePoseFromNS(const SE3d &Tbc);
 	
@@ -99,6 +100,14 @@ public:
 	void setProcessed(bool flag);
 	
 	void UpdateNavState(const vill::IMUPreintegrator &imupreint, const Vector3d &gw);
+	
+	void setMarginal(bool& flag){marginal = flag;}
+	
+	bool getMarginal(){return marginal;}
+	
+	void setMarginalizedInfo(Eigen::Matrix<double,15,15>& info_){marginalized_info = info_;}
+	
+	Eigen::Matrix<double,15,15> getMarginalizedInfo(){return marginalized_info;}
 	
 	int previousFId;
 	
@@ -113,6 +122,9 @@ protected:
 	
 	boost::mutex mMutexProcessed;
 	bool processed;
+	bool marginal;
+	
+	Eigen::Matrix<double,15,15> marginalized_info;
 	
 };
 }//end of namespace

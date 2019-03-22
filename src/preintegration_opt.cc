@@ -79,6 +79,16 @@ void preintegration_opt::insertFrameswithIMU(Velodyne_SLAM::Frame* pF)
   mCurrentFrame = pF;
 }
 
+void preintegration_opt::insertFrame(Velodyne_SLAM::Frame* pF)
+{
+	lFrames.push_back(pF);
+	mCurrentFrame = pF;
+	if(lFrames.size() > window_width)
+		lFrames.pop_front();
+
+}
+
+
 bool preintegration_opt::checkNewFrames()
 {
   boost::mutex::scoped_lock lock(mMutexProcessFrames);
@@ -556,6 +566,30 @@ bool preintegration_opt::processFrames(std::vector< Velodyne_SLAM::Frame* >& pFs
   
 
 }
+
+void preintegration_opt::processLaserFrames()
+{	
+	if(lFrames.size() == 1) return;
+	
+	Vector3d pdbiasa, pdbiasg, pvelo;
+	
+	Vector3d tempGravity = imu_preintegration::getGravity();
+	
+	vector<Velodyne_SLAM::Frame* > frames_in_window;
+	
+	list<Velodyne_SLAM::Frame*>::iterator it_lFrames = lFrames.begin();
+	for(; it_lFrames != lFrames.end(); it_lFrames++){
+		Velodyne_SLAM::Frame* pF = *it_lFrames;
+		pF->ComputePreInt();
+	}
+	
+	bool res = Velodyne_SLAM::Optimizer::OptimizePosewithIMU(frames_in_window, tempGravity, pdbiasa, pdbiasg, pvelo);
+	
+	
+	
+
+}
+
 
 void preintegration_opt::setimu_preintegration(imu_preintegration* pimu_preintegrator)
 {

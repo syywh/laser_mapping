@@ -27,7 +27,10 @@ namespace LIV{
     void Run();
     
     void insertFrameswithIMU(Velodyne_SLAM::Frame* pF);
+	void insertFrame(Velodyne_SLAM::Frame* pF);
     void insertFramesForInitialization(Velodyne_SLAM::Frame* pF);
+	
+	void processLaserFrames();
 //     bool isInitialized();
     
     // == initializing IMU
@@ -61,6 +64,7 @@ namespace LIV{
     ros::NodeHandle n;
     boost::mutex mMutexProcessFrames;  
     vector<Velodyne_SLAM::Frame* > vFrames;
+	list<Velodyne_SLAM::Frame* > lFrames;
     
     boost::mutex mMutexFramesForInit;
     vector<Velodyne_SLAM::Frame*> vFramesForInit;

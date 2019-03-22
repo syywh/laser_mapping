@@ -25,6 +25,8 @@ namespace vill {
         NavState();
 
         NavState(const NavState &_ns);
+		
+		NavState(const double& time);
 
         //Quaterniond Get_qR(){return _qR;}     // rotation
         SO3d Get_R() const { return _R; }
@@ -34,6 +36,9 @@ namespace vill {
 
         Vector3d Get_P() const { return _P; }         // position
         Vector3d Get_V() const { return _V; }         // velocity
+        
+        double Get_Time() const { return _time; }
+        
         void Set_Pos(const Vector3d &pos) { _P = pos; }
 
         void Set_Vel(const Vector3d &vel) { _V = vel; }
@@ -41,16 +46,16 @@ namespace vill {
         void Set_Rot(const Matrix3d &rot) { _R = SO3d(rot); }
 
         void Set_Rot(const SO3d &rot) { _R = rot; }
+        
+        void Set_Time(const double &time) {_time = time;}
 
-        Vector3d
-        Get_BiasGyr() const { return _BiasGyr; }   // bias of gyroscope, keep unchanged after init and during optimization
+        Vector3d Get_BiasGyr() const { return _BiasGyr; }   // bias of gyroscope, keep unchanged after init and during optimization
         Vector3d Get_BiasAcc() const { return _BiasAcc; }   // bias of accelerometer
         void Set_BiasGyr(const Vector3d &bg) { _BiasGyr = bg; }
 
         void Set_BiasAcc(const Vector3d &ba) { _BiasAcc = ba; }
 
-        Vector3d
-        Get_dBias_Gyr() const { return _dBias_g; }  // delta bias of gyroscope, init as 0, change during optimization
+        Vector3d Get_dBias_Gyr() const { return _dBias_g; }  // delta bias of gyroscope, init as 0, change during optimization
         Vector3d Get_dBias_Acc() const { return _dBias_a; }  // delta bias of accelerometer
         void Set_DeltaBiasGyr(const Vector3d &dbg) { _dBias_g = dbg; }
 
@@ -81,6 +86,10 @@ namespace vill {
         // update below term during optimization
         Vector3d _dBias_g;  // delta bias of gyroscope, correction term computed in optimization
         Vector3d _dBias_a;  // delta bias of accelerometer
+        
+        double _time;
+		
+		
     };
 
 }

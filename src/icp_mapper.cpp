@@ -730,31 +730,18 @@ void ICPMapper::processCloudandGPS(ICPMapper::DP* newPointCloud, const string& s
 void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFrame, const ros::Time& stamp, uint32_t seq)
 {
 
-// 	// IMPORTANT:  We need to receive the point clouds in local coordinates (scanner or robot)
-//   LOG(INFO)<<"New frame";
-// 	timer t;
-// 	LIV::OdomPreintegrator odompre;
-// 	if( mCurrentState==NOT_INITIALIZED ){
-// 	  modom_preintegration->resetPreintegrator();
-// 	}else{
-// 	  odompre = modom_preintegration->getEvaluatedOdomPreintegration();
-// 	  modom_preintegration->resetPreintegrator();
-// 	}
-  
+ 
 	// IMPORTANT:  We need to receive the point clouds in local coordinates (scanner or robot)
-  
-      if(!mimu_preintegration->checkCoarseInitialized())
-	return;
+    //shall we?
+	//during static initialization, the robot would not move, so maybe its ok for us to leave alone these scans
+	if(!mimu_preintegration->checkCoarseInitialized())
+		return;
       
       
 	timer t;
 	
-	if(!(isOkForProcessNewFrame()))
-	{
-		cerr<<"_______"<<endl<<"Not OK For Process NewFrame, last kFid is "<<lastProcessedKeyFrame<<endl;
-		delete newPointCloud;
-		return ;
-	}
+	//Change List: remove local mapping thread and do local mapping in the main function
+
 
 	// Convert point cloud
 	const size_t goodCount(newPointCloud->features.cols());
@@ -771,52 +758,68 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		return;
 	}
 	
-	PM::TransformationParameters iso3_preint = PM::TransformationParameters::Identity(4,4);
+	PM::TransformationParameters iso3_preint_cur = PM::TransformationParameters::Identity(4,4);
+	PM::TransformationParameters iso3_preint_last = PM::TransformationParameters::Identity(4,4);
 
-	// try{
-	//   // iso3_preint = PointMatcher_ros::eigenMatrixToDim<float>(
-	// 		//   PointMatcher_ros::transformListenerToEigenMatrix<float>(
-	// 		//   tfListener,
-	// 		//   laserFrame,
-	// 		//   imuFrame,
-	// 		//   ros::Time::now()
-	// 	 //  ),4);
-	    
-	//   }catch(tf2::ExtrapolationException){
-	//   	ROS_ERROR_STREAM("icp now " << ros::Time::now());
-	//     LOG(INFO)<<"synchronization wrong..."<<endl;
-	// 	if(mCurrentState == WORKING){
-	// 		if(cnt_for_lost_imu >= 10){
-	// 			LOG(INFO)<<"turn to SLAM without imu...";
-	// 			buse_imu = false;
-	// 		}else{
-	// 			cnt_for_lost_imu++;
-	// 			LOG(WARNING)<<"lost imu data";
-	// 		}
-	// 	}
-	//     return;
-	//   }
-      
-    list<double>::iterator time_it = mimu_preintegration->vT_times.begin();
+    //what if we keep all of the IMU data?  
+	bool matched_cur_imu = false, matched_last_imu = false;
+	int curStampInIMUVector = 0, lastStampInIMUVector = 0;
+	if(mCurrentState != WORKING){
+		matched_last_imu = true;
+		lastStampInIMUVector = -1; // perhaps the first laser frame
+	}
 
-	while(ros::ok()){
-		if(fabs(*time_it - stamp.toSec()) < 0.003){
-			iso3_preint = mimu_preintegration->vT_laser_imu.front();
-			break;
-		}else{
-			if(*time_it < stamp.toSec()){
-				time_it++;
-				mimu_preintegration->vT_times.pop_front();
-				mimu_preintegration->vT_laser_imu.pop_front();
-			}else{
+	double curLaserTime = stamp.toSec();
+	double lastLaserTime = lastPoinCloudTime.toSec();
+	
+// 	cout <<"curlaser time " << curLaserTime<<endl <<"last laser time " << lastLaserTime << endl;
+	for(int j = mimu_preintegration->v_NavStates.size()-1; j >= 0; j--){
+		NavState& pNavState  = mimu_preintegration->v_NavStates[j];
 
-				ROS_ERROR_STREAM("synchronization wrong " << stamp << "-" << *time_it);
-				cout << *time_it - stamp.toSec() << endl;
-				mpLocalMapper->setProcessedOneFrame(true);
-				return;
+		if(pNavState.Get_Time() > (curLaserTime + 0.01))	continue;
+		
+		//should be the imu state for laser frame
+		if( (fabs(pNavState.Get_Time() - curLaserTime) < 0.01) && (!matched_cur_imu)){
+			iso3_preint_cur.block<3,3>(0,0) = pNavState.Get_R().matrix().cast<float>();
+			iso3_preint_cur.block<3,1>(0,3) = pNavState.Get_P().cast<float>();
+			iso3_preint_last = iso3_preint_cur; // in case of iso3_preint_last can not get a value when mCurrentState != WORKING
+			matched_cur_imu = true;
+			curStampInIMUVector = j;
+			
+		}
+		
+		if( (fabs(pNavState.Get_Time() - lastLaserTime) < 0.01) && (!matched_last_imu)){
+			iso3_preint_last.block<3,3>(0,0) = pNavState.Get_R().matrix().cast<float>();
+			iso3_preint_last.block<3,1>(0,3) = pNavState.Get_P().cast<float>();
+			matched_last_imu = true;
+			lastStampInIMUVector = j;
+			if(previousFrame){
+				previousFrame->setNavState(pNavState);
 			}
+			break;
+		}
+		
+		if(matched_cur_imu && matched_last_imu)
+			break;
+		
+		if(!(ros::ok()))
+			break;
+		
+	}
+	
+	if(lastStampInIMUVector >=0 && curStampInIMUVector >= 0){
+		vector<vill::IMUData> imudata_in_last_frame;
+		for(int j = lastLaserTime; j < curLaserTime; j++){
+			imudata_in_last_frame.push_back(mimu_preintegration->lIMUdata[j]);
+		}
+		if(previousFrame){
+			previousFrame->SetIMUdata(imudata_in_last_frame);
 		}
 	}
+	
+	cout <<"[icp mapper] cur imu " << iso3_preint_cur << "last  imu " << iso3_preint_last << endl;
+
+	
 
 
 
@@ -826,47 +829,43 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 	{
 	  boost::mutex::scoped_lock lock(mMutexState);
 	  _CurrentState = mCurrentState;
-	  cout<<"Current State "<<_CurrentState<<" "<<mCurrentState<<endl;
 	}
 	
-	vill::IMUPreintegrator imupre;
-	vector<vill::IMUData> vimudatas;
-	vector<vill::IMUData> vcombinedatas;
+// 	vill::IMUPreintegrator imupre;
+// 	vector<vill::IMUData> vimudatas;
+// 	vector<vill::IMUData> vcombinedatas;
 // 	bool imuInitialized = mpreintegration_optimizer->GetIMUInited();
 	
-	if( _CurrentState==NOT_INITIALIZED ){//the first laser frame
-	  vimudatas = mimu_preintegration->getIMUdataVector();
-	  mimu_preintegration->resetPreintegrator();
-	  deltaIMUdata.insert(deltaIMUdata.end(), vimudatas.begin(),vimudatas.end());
-	  LOG(INFO)<<"reset"<<endl;
-	}else{
-	  //get imu data//TODO perhaps could be replaced
-	  imupre = mimu_preintegration->getEvaluatedOdomPreintegration();
-	  //get imu vector data, perhaps data is not synchronized
-	  vimudatas = mimu_preintegration->getIMUdataVector();
-	  mimu_preintegration->resetPreintegrator();
-	  vcombinedatas.assign(deltaIMUdata.begin(),deltaIMUdata.end());
-	  deltaIMUdata.clear();
-	  while((!vimudatas.empty()) && (vimudatas.back()._t>=stamp.toSec())){
-	    deltaIMUdata.insert(deltaIMUdata.begin(), vimudatas.back());
-	    vimudatas.pop_back();
-	  }
-	  vcombinedatas.insert(vcombinedatas.end(),vimudatas.begin(),vimudatas.end());
-// 	  if(previousFrame){
-// 	    cout<<"previous frame "<<previousFrame->mstamp<<endl;
-// 	    cout<<"current frame "<<stamp<<endl;
-// 	    cout<<"imu data "<<setprecision(12)<<vcombinedatas.front()._t<<" "<<vcombinedatas.back()._t<<endl;
+// 	if( _CurrentState==NOT_INITIALIZED ){//the first laser frame
+// 	  vimudatas = mimu_preintegration->getIMUdataVector();
+// 	  mimu_preintegration->resetPreintegrator(); //TODO
+// 	  deltaIMUdata.insert(deltaIMUdata.end(), vimudatas.begin(),vimudatas.end());
+// 	  LOG(INFO)<<"reset"<<endl;
+// 	}else{
+// 	  //get imu data//TODO perhaps could be replaced
+// 	  imupre = mimu_preintegration->getEvaluatedOdomPreintegration();
+// 	  //get imu vector data, perhaps data is not synchronized
+// 	  vimudatas = mimu_preintegration->getIMUdataVector();
+// 	  mimu_preintegration->resetPreintegrator();
+// 	  vcombinedatas.assign(deltaIMUdata.begin(),deltaIMUdata.end());
+// 	  deltaIMUdata.clear();
+// 	  while((!vimudatas.empty()) && (vimudatas.back()._t>=stamp.toSec())){
+// 	    deltaIMUdata.insert(deltaIMUdata.begin(), vimudatas.back());
+// 	    vimudatas.pop_back();
 // 	  }
-	}
+// 	  vcombinedatas.insert(vcombinedatas.end(),vimudatas.begin(),vimudatas.end());
+// 
+// 	}
 	
 	
 	
 	// Dimension of the point cloud, important since we handle 2D and 3D
 	const int dimp1(newPointCloud->features.rows());
 
-	if(!(newPointCloud->descriptorExists("stamps_Msec") && newPointCloud->descriptorExists("stamps_sec") && newPointCloud->descriptorExists("stamps_nsec")))
+	if(!(newPointCloud->descriptorExists("stamps_Msec") && newPointCloud->descriptorExists("stamps_sec") 
+		&& newPointCloud->descriptorExists("stamps_nsec")))
 	{
-		//时间是进来的点云的stamp
+		
 		const float Msec = round(stamp.sec/1e6);
 		const float sec = round(stamp.sec - Msec*1e6);
 		const float nsec = round(stamp.nsec);
@@ -881,17 +880,17 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 	}
 
 	inputFilters.apply(*newPointCloud);
-			
+	cout <<"after filtering " << newPointCloud->features.cols() <<" points " << endl;		
 	
 	string reason;
-	// Initialize the transformation to identity if empty
+	// Initialize the transformation to gravity aligned coordinates
 	//初始化TimuToMap和TLaserToLocalMap
  	if(mCurrentState != WORKING)
  	{
 		// we need to know the dimensionality of the point cloud to initialize properly
 		publishLock.lock();//boost::mutex publishLock;
 // 		TimuToMap = PM::TransformationParameters::Identity(dimp1, dimp1);
-		TimuToMap = mimu_preintegration->getInitialT();	//T^n_b0
+		TimuToMap = iso3_preint_cur;	//T^n_b0
 		
 // 		//TEST
 		//间断跑（卡成小片段跑slam，ss为最后一帧（相对于上一个局部地图的那一帧），读进来的pose是上一个局部地图的pose）
@@ -963,29 +962,30 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 			pFrame = new Frame(stamp, newPointCloud,TLaserToMap,false);
 // 		pFrame->SetIMUPreint(imupre);
 		
-		pFrame->UpdateNavStatePVRFromTwc(SE3d(TLaserToMap.cast<double>()), vill::ConfigParam::GetSE3Tbl());
+// 		pFrame->UpdateNavStatePVRFromTwc(SE3d(TLaserToMap.cast<double>()), vill::ConfigParam::GetSE3Tbl());
 		
 		pFrame->SetTicp(TLaserToMap);
-		mimu_preintegration->setCurLaserPose(TLaserToMap);
-		pFrame->SetIMUdata(vcombinedatas);
-		pFrame->SetNavStateBiasAcc(mimu_preintegration->getBiasa());
-		pFrame->SetNavStateBiasGyr(mimu_preintegration->getBiasg());
+// 		mimu_preintegration->setCurLaserPose(TLaserToMap);
+// 		pFrame->SetIMUdata(vcombinedatas);
+// 		pFrame->SetNavStateBiasAcc(mimu_preintegration->getBiasa());
+// 		pFrame->SetNavStateBiasGyr(mimu_preintegration->getBiasg());
 		
 		
-		PM::TransformationParameters TNav = PM::TransformationParameters::Identity(4,4);
-		NavState curNav = pFrame->GetNavState();
-		TNav.block<3,3>(0,0) = curNav.Get_R().matrix().cast<float>();
-		TNav.block<3,1>(0,3) = curNav.Get_P().cast<float>();
-		tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TNav, mapFrame, "Nav", ros::Time::now()));
+// 		PM::TransformationParameters TNav = PM::TransformationParameters::Identity(4,4);
+// 		NavState curNav = pFrame->GetNavState();
+// 		TNav.block<3,3>(0,0) = curNav.Get_R().matrix().cast<float>();
+// 		TNav.block<3,1>(0,3) = curNav.Get_P().cast<float>();
+// 		tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TNav, mapFrame, "Nav", ros::Time::now()));
 // 		  pFrame->ComputePreInt();
 		
 		{
 		  boost::mutex::scoped_lock lock(mMutexPreviousFrame);
 		  previousFrame = pFrame;
+		  pFrame->previousF = nullptr;
 		}
-		cout<<pFrame->mnId<<endl;
-		cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
-		<<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
+// 		cout<<pFrame->mnId<<endl;
+// 		cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
+// 		<<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
 // 		if((stamp.sec == gps_position_time.sec) && (stamp.sec == gps_orientation_time.sec)){
 		if(fabs(stamp.sec - gps_time.sec) < 0.05){//此时获得的gps信号
 			mappergps.status = 1;
@@ -996,6 +996,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		pFrame->setGPS(mappergps);
 		
 		mpLocalMapper->InsertFrame(pFrame);
+		mpreintegration_optimizer->insertFrame(pFrame);
 		
 		_CurrentState = INITIALIZING;
 		if(!reInitialized)
@@ -1033,208 +1034,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 			    }
 			    LOG(INFO)<<"WORKING";
 			}
-		}else
-			if(_CurrentState == NOT_LOCALIZEING)// soppose the localizing will be called after slam
-			{
-			  mpMap->getWholeMapPoints(DPforLocalizing);
-			  setMap(&DPforLocalizing);
-			  {
-			    boost::mutex::scoped_lock lock(mMutexState);
-			    mCurrentState = LOCALIZEING;
-			  }
-			} 
-			if(_CurrentState == LOCALIZEING){
-			  
-			  try 
-			  {
-			      // Apply ICP
-			      PM::TransformationParameters Ticp, TicpLocal, TScannerToMapPre;
-// 			      PM::TransformationParameters iso3_preint = PM::TransformationParameters::Identity(4,4);
-// 			     
-// 			      
-// // 			      Eigen::Matrix3f BaseToMapRotation_pre =  imupre.getDeltaR().cast<float>();
-// // 			      Eigen::AngleAxisf BaseToMapAxisAngle_pre(BaseToMapRotation_pre); 
-// // 			      iso3_preint.block(0,0,3,3) = BaseToMapAxisAngle_pre.toRotationMatrix();
-// // 			      iso3_preint.col(3).head(3) = imupre.getDeltaP().cast<float>();
-// 			      
-// 			      iso3_preint = PointMatcher_ros::eigenMatrixToDim<float>(
-// 				PointMatcher_ros::transformListenerToEigenMatrix<float>(
-// 				tfListener,
-// 				laserFrame,
-// 				imuFrame,
-// 				stamp),4);
-			      
-			      Eigen::Matrix3f BaseToMapRotation_pre = iso3_preint.block<3,3>(0,0);
-			      Eigen::AngleAxisf BaseToMapAxisAngle_pre(BaseToMapRotation_pre); 
-			      iso3_preint.block(0,0,3,3) = BaseToMapAxisAngle_pre.toRotationMatrix();
-			      
-			      TScannerToMapPre = TLaserToMap * ( iso3_preint * TimuToLaser.inverse() );
-			      
-			      Ticp = icp(*newPointCloud, TScannerToMapPre);
-							
-			      Eigen::Matrix3f BaseToMapRotation = Ticp.block(0,0,3,3);
-			      Eigen::AngleAxisf BaseToMapAxisAngle(BaseToMapRotation);    // RotationMatrix to AxisAngle
-			      Ticp.block(0,0,3,3) = BaseToMapAxisAngle.toRotationMatrix();  // AxisAngle      to RotationMatrix
-					
-
-				if(Debug_ICP)
-				{
-					cerr<<"[after icp] mappoint "<<icp.getInternalMap().features.cols()<<endl;
-		// 			cerr<<"[icp mapper]Ticp:\n" << Ticp<<endl;
-				}
-					
-					// Ensure minimum overlap between scans
-				const double estimatedOverlap = icp.errorMinimizer->getOverlap();
-					
-			// 		#ifdef DEBUG_ICP
-				if(Debug_ICP){
-				    LOG(INFO)<<"[icp mapper] Overlap: " << estimatedOverlap<<endl;
-				}
-			// 		#endif
-				if (estimatedOverlap < minOverlap)
-				{
-					ROS_ERROR_STREAM("Estimated overlap too small, ignoring ICP correction!");
-					//save preintegration //TODO
-					return;
-				}
-					
-				Frame* pFrame = new Frame(stamp, newPointCloud, TicpLocal,false);
-				pFrame->SetIMUdata(vcombinedatas);
-				SE3d se3Ticp = SE3d(Ticp.cast<double>());
-				pFrame->SetTicp(Ticp);
-			
-				{
-				    boost::mutex::scoped_lock lock(mMutexPreviousFrame);
-				    pFrame->SetInitialNavStateAndBias(previousFrame->GetNavState());
-				    pFrame->previousF = previousFrame;
-				    previousFrame = pFrame;
-				}
-					
-				if(mpreintegration_optimizer->checkBiasUpdated()){
-				  pFrame->SetNavStateDeltaBa(mpreintegration_optimizer->getdbiasa());
-				  pFrame->SetNavStateDeltaBg(mpreintegration_optimizer->getdbiasg());
-				  pFrame->SetNavStateVel(mpreintegration_optimizer->getVelo());
-				  mpreintegration_optimizer->setBiasUpdated(false);
-				  pFrame->UpdateNavStatePVRFromTwc(se3Ticp, vill::ConfigParam::GetSE3Tbl());
-// 				  pFrame->ComputePreInt();
-				}
-				else{
-				  pFrame->ComputePreInt();
-				  cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
-				  <<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
-				  cout<<"preint v: "<<pFrame->GetIMUPreint().getDeltaV().transpose()<<endl
-				  <<"preint p: "<<pFrame->GetIMUPreint().getDeltaP().transpose()<<endl;
-				  pFrame->UpdateNavState(pFrame->GetIMUPreint(),mimu_preintegration->getGravity());
-				  cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
-				  <<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
-				}
-
-					
-					//save pose for initialization
-			// 		if( !mpLocalMapper->GetIMUInited())
-					
-			// 		pFrame->UpdateNavStatePVRFromTcw(se3Ticp, vill::ConfigParam::GetSE3Tbl());
-					
-				  
-				  mpreintegration_optimizer->insertFrameswithIMU(pFrame);
-				  
-					
-					
-			// 		if((stamp.sec == gps_position_time.sec) && (stamp.sec == gps_orientation_time.sec)){
-				  if(fabs(stamp.sec - gps_time.sec) < 0.05){
-					  mappergps.status = 1;
-				  }else{
-					  mappergps.status = 0;
-					  cerr<<"frame "<<pFrame->mnId<<"  in time "<<pFrame->mstamp<<"does not have gps"<<endl;
-				  }
-				  pFrame->setGPS(mappergps);
-			
-				  
-	  // 			mTemp_FramePose_Record.push_back(pFrame->mLocalTicp);
-				  mTemp_Frame_Record.push_back(pFrame);
-					
-					
-				  // Compute tf
-				  publishStamp = stamp;
-				  publishLock.lock();
-				  TimuToMap = Ticp * TimuToLaser;
-				  TLaserToMap = Ticp;
-				  // Publish tf
-		  		if(publishMapTf == true)
-				  {
-		  // 			cout<<Ticp<<endl;
-					  tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(Ticp, mapFrame, laserFrame, stamp));
-				  }
-
-				  publishLock.unlock();
-					
-					// Publish odometry
-				  if (odomPub.getNumSubscribers()) {
-	                  nav_msgs::Odometry msg = PointMatcher_ros::eigenMatrixToOdomMsg<float>(Ticp, mapFrame, ros::Time::now());
-	                  msg.child_frame_id = "velodyne";
-					  odomPub.publish(msg);
-                                   }
-
-				}
-			  catch (PM::ConvergenceError error)
-		  // 	catch(exception &error)
-			  {
-				  ROS_ERROR_STREAM("ICP failed to converge: " << error.what());
-				  return;
-			  }
-			  
-				
-#if 0
-				if(checkLocalizing == 0)
-				{
-					cerr<<"SET MAP!!"<<endl;
-					mpLocalMapper->getLocalMapPointsNew(DPforLocalizing);
-// 					setMap(&DPforLocalizing);		
-					icpInit.setMap(DPforLocalizing);
-// 					 firstICP = PM::TransformationParameters::Identity(4,4);
-				}
-//youwenti !!!!!  是不是要迭代
-// 				PM::TransformationParameters firstICP = PM::TransformationParameters::Identity(4,4);
-// 				PM::TransformationParameters Ticplocal;
-				try{
-					Ticplocal = icpInit(*newPointCloud, firstICP);
-					cerr<<checkLocalizing<<"Localizing Ticp"<<endl<<Ticplocal<<endl;
-// 					tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(Ticplocal, mapFrame, laserFrame, stamp));
-					firstICP = Ticplocal;
-					if(checkLocalizing > 5)
-					{
-						cerr<<"OK"<<checkLocalizing<<endl;
-						mCurrentState = LOCALIZEING;
-						TLaserToLocalMap = Ticplocal;
-						Frame* pFrame =  new Frame(stamp, newPointCloud,Ticplocal,true);
-						if(stamp.sec == gps_time.sec){
-							mappergps.status = 1;
-						}else{
-							mappergps.status = 0;
-							cerr<<"frame "<<pFrame->mnId<<"  in time "<<pFrame->mstamp<<"does not have gps"<<endl;
-						}
-						pFrame->setGPS(mappergps);
-						mpLocalMapper->InsertFrame(pFrame);
-						StopProcessNewFrame();
-						return;
-					}
-					delete newPointCloud;
-					cerr<<"checkLocalizing"<<checkLocalizing++<<endl;
-						
-				}
-				catch(PM::ConvergenceError error)
-				{
-					checkLocalizing = 0;
-					 firstICP = PM::TransformationParameters::Identity(4,4);
-					ROS_ERROR_STREAM("Localizeing ICP failed to converge: " << error.what());
-					delete newPointCloud;
-					
-				}
-				
-				return;
-#endif
-			}
-			
+		}
 		
 	{
 	  boost::mutex::scoped_lock lock(mMutexState);
@@ -1270,12 +1070,13 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		iso3_preint.col(3).head(3) = imupre.getDeltaP().cast<float>() +( 0.5 * mimu_preintegration->getGravity() * (deltat * deltat)).cast<float>();
 	    
 	*/	
-		Eigen::Matrix3f BaseToMapRotation_pre = iso3_preint.block<3,3>(0,0);
+		PM::TransformationParameters deltaIMUPose = iso3_preint_last.inverse() * iso3_preint_cur;
+		Eigen::Matrix3f BaseToMapRotation_pre = deltaIMUPose.block<3,3>(0,0);
 		Eigen::AngleAxisf BaseToMapAxisAngle_pre(BaseToMapRotation_pre); 
-		iso3_preint.block(0,0,3,3) = BaseToMapAxisAngle_pre.toRotationMatrix();
+		deltaIMUPose.block(0,0,3,3) = BaseToMapAxisAngle_pre.toRotationMatrix();
 		
-		TLaserToLocalMapPre = TLaserToLocalMap * ( iso3_preint * TimuToLaser.inverse() );
-// 		TLaserToLocalMapPre = copyTLocalToMap.inverse() *  (TimuToLaser * iso3_preint * TimuToLaser.inverse() );
+		TLaserToLocalMapPre = TLaserToLocalMap * ( TimuToLaser * deltaIMUPose * TimuToLaser.inverse() );
+
 		
 		TicpLocal = icp(*newPointCloud, TLaserToLocalMapPre);
 
@@ -1292,7 +1093,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		if(Debug_ICP)
 		{
 			cerr<<"[after icp] mappoint "<<icp.getInternalMap().features.cols()<<endl;
-// 			cerr<<"[icp mapper]Ticp:\n" << Ticp<<endl;
+
 		}
 		
 		// Ensure minimum overlap between scans
@@ -1310,34 +1111,34 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		}
 		
 		Frame* pFrame = new Frame(stamp, newPointCloud, TicpLocal,false);
-		pFrame->SetIMUdata(vcombinedatas);
+// 		pFrame->SetIMUdata(vcombinedatas);
 		SE3d se3Ticp = SE3d(Ticp.cast<double>());
 		pFrame->SetTicp(Ticp);
 // 		pFrame->SetIMUPreint(imupre);
 		{
 		  boost::mutex::scoped_lock lock(mMutexPreviousFrame);
-		  pFrame->SetInitialNavStateAndBias(previousFrame->GetNavState());
+// 		  pFrame->SetInitialNavStateAndBias(previousFrame->GetNavState());
 		  pFrame->previousF = previousFrame;
 		  pFrame->previousF_KF = previousFrame;
 		  previousFrame = pFrame;
 		}
 		
-		if(mpreintegration_optimizer->checkBiasUpdated()){
-// 		  pFrame->SetNavStateDeltaBa(mpreintegration_optimizer->getdbiasa());//TEST  bias only be adjusted in optimization process?
-// 		  pFrame->SetNavStateDeltaBg(mpreintegration_optimizer->getdbiasg());
-// 		  pFrame->SetNavStateVel(mpreintegration_optimizer->getVelo());
-		  mpreintegration_optimizer->setBiasUpdated(false);
-		  pFrame->UpdateNavStatePVRFromTwc(se3Ticp, vill::ConfigParam::GetSE3Tbl());	//TEST
+// 		if(mpreintegration_optimizer->checkBiasUpdated()){
+// // 		  pFrame->SetNavStateDeltaBa(mpreintegration_optimizer->getdbiasa());//TEST  bias only be adjusted in optimization process?
+// // 		  pFrame->SetNavStateDeltaBg(mpreintegration_optimizer->getdbiasg());
+// // 		  pFrame->SetNavStateVel(mpreintegration_optimizer->getVelo());
+// 		  mpreintegration_optimizer->setBiasUpdated(false);
+// 		  pFrame->UpdateNavStatePVRFromTwc(se3Ticp, vill::ConfigParam::GetSE3Tbl());	//TEST
+// // 		  pFrame->ComputePreInt();
+// // 		  pFrame->UpdateNavState(pFrame->GetIMUPreint(),LIV::imu_preintegration::getGravity());	//TEST
+// 		}
+// // 		else{
 // 		  pFrame->ComputePreInt();
-// 		  pFrame->UpdateNavState(pFrame->GetIMUPreint(),LIV::imu_preintegration::getGravity());	//TEST
-		}
-// 		else{
-		  pFrame->ComputePreInt();
-// 		  cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
-// 		  <<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
-// 		  cout<<"preint v: "<<pFrame->GetIMUPreint().getDeltaV().transpose()<<endl
-// 		  <<"preint p: "<<pFrame->GetIMUPreint().getDeltaP().transpose()<<endl;
-		  pFrame->UpdateNavState(pFrame->GetIMUPreint(),LIV::imu_preintegration::getGravity());
+// // 		  cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
+// // 		  <<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
+// // 		  cout<<"preint v: "<<pFrame->GetIMUPreint().getDeltaV().transpose()<<endl
+// // 		  <<"preint p: "<<pFrame->GetIMUPreint().getDeltaP().transpose()<<endl;
+// 		  pFrame->UpdateNavState(pFrame->GetIMUPreint(),LIV::imu_preintegration::getGravity());
 // 		  cout<<"trackingimu pose: "<<pFrame->GetNavState().Get_P().transpose()<<endl
 // 		  <<"trackingimu velo: "<<pFrame->GetNavState().Get_V().transpose()<<endl;
 // 		}
@@ -1349,7 +1150,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 // 		pFrame->UpdateNavStatePVRFromTcw(se3Ticp, vill::ConfigParam::GetSE3Tbl());
 		
 
-		mpreintegration_optimizer->insertFrameswithIMU(pFrame);
+// 		mpreintegration_optimizer->insertFrameswithIMU(pFrame);
 
 		
 // 		if((stamp.sec == gps_position_time.sec) && (stamp.sec == gps_orientation_time.sec)){
@@ -1360,6 +1161,9 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 			cerr<<"frame "<<pFrame->mnId<<"  in time "<<pFrame->mstamp<<"does not have gps"<<endl;
 		}
 		pFrame->setGPS(mappergps);
+		
+		mpreintegration_optimizer->insertFrame(pFrame);
+		
 		if( ((estimatedOverlap<KFthreOverlap)&&(isOKforCreateNewKeyFrame()) && ((pFrame->mnId - lastProcessedKeyFrame )>20) && (copyReferenceDP.features.cols()>5000) )||
 			((copyReferenceDP.features.cols()>MaxLocalMappoints)&&(isOKforCreateNewKeyFrame()) ) ||
 			( (abs(TicpLocal(1,3)) > halfRoadWidth ) &&(isOKforCreateNewKeyFrame()) )
@@ -1408,19 +1212,19 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		publishLock.lock();
 		TimuToMap = Ticp * TimuToLaser;
 		TLaserToMap = Ticp;
-		mimu_preintegration->setCurLaserPose(TLaserToMap);
-		// Publish tf
+// 		mimu_preintegration->setCurLaserPose(TLaserToMap);
+// 		// Publish tf
 		
 		//TEST 检查Nav的状态是否正确
-		PM::TransformationParameters TNav = PM::TransformationParameters::Identity(4,4);
-		NavState curNav = pFrame->GetNavState();
-		TNav.block<3,3>(0,0) = curNav.Get_R().matrix().cast<float>();
-		TNav.block<3,1>(0,3) = curNav.Get_P().cast<float>();
+// 		PM::TransformationParameters TNav = PM::TransformationParameters::Identity(4,4);
+// 		NavState curNav = pFrame->GetNavState();
+// 		TNav.block<3,3>(0,0) = curNav.Get_R().matrix().cast<float>();
+// 		TNav.block<3,1>(0,3) = curNav.Get_P().cast<float>();
 		if(publishMapTf == true)
 		{
 // 			cout<<Ticp<<endl;
 			// tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(Ticp, mapFrame, laserFrame, stamp));
-			tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TNav, mapFrame, "Nav", ros::Time::now()));
+// 			tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TNav, mapFrame, "Nav", ros::Time::now()));
 		}
 
 		publishLock.unlock();
@@ -1895,12 +1699,12 @@ void ICPMapper::processCloud(DP* newPointCloud, const std::string& scannerFrame,
       
 	timer t;
 	
-	if(!(isOkForProcessNewFrame()))
-	{
-		cerr<<"_______"<<endl<<"Not OK For Process NewFrame, last kFid is "<<lastProcessedKeyFrame<<endl;
-		delete newPointCloud;
-		return ;
-	}
+// 	if(!(isOkForProcessNewFrame()))
+// 	{
+// 		cerr<<"_______"<<endl<<"Not OK For Process NewFrame, last kFid is "<<lastProcessedKeyFrame<<endl;
+// 		delete newPointCloud;
+// 		return ;
+// 	}
 
 	// Convert point cloud
 	const size_t goodCount(newPointCloud->features.cols());

@@ -94,9 +94,9 @@ int main(int argc, char **argv)
 	LoopCloser.SetIcpMapper(&mapper);
 	LoopCloser.SetLocalMapper(&localMapper);
 	
-	boost::thread LocalMappingThread(&Velodyne_SLAM::LocalMapping::Run, &localMapper);
+// 	boost::thread LocalMappingThread(&Velodyne_SLAM::LocalMapping::Run, &localMapper);
 
-	boost::thread LoopClosingThread(&Velodyne_SLAM::LoopClosing::Run, &LoopCloser);
+// 	boost::thread LoopClosingThread(&Velodyne_SLAM::LoopClosing::Run, &LoopCloser);
 	
 	if(task == "with_map"){
 		string map_dir;
@@ -114,12 +114,13 @@ int main(int argc, char **argv)
 	
 //imu	
 	if(use_imu){
-		boost::thread ImuPreintegrationThread(&LIV::imu_preintegration::Run, &imu_preintegrator);
-	    boost::thread PreintegrationThread(&LIV::preintegration_opt::Run, &preintegration_optimizer);
+// 		boost::thread ImuPreintegrationThread(&LIV::imu_preintegration::Run, &imu_preintegrator);
+// 	    boost::thread PreintegrationThread(&LIV::preintegration_opt::Run, &preintegration_optimizer);
     
 	    mapper.setImuPre(&imu_preintegrator);
 	    mapper.setPreintegrationOpt(&preintegration_optimizer); 
 	    topics.push_back(imu_preintegrator.getIMUName());
+		preintegration_optimizer.setimu_preintegration(&imu_preintegrator);
 	}
 	
 // 	//odom
@@ -140,6 +141,8 @@ int main(int argc, char **argv)
 	rosbag::View view(databag, rosbag::TopicQuery(topics));
 
 	ros::Rate r(10);
+	
+
 	foreach(rosbag::MessageInstance const m, view){
 		if(!ros::ok())
 			break;
@@ -150,7 +153,6 @@ int main(int argc, char **argv)
 		if(use_imu && imuData){
 // 			ROS_INFO_STREAM("read imu data " << imuData->header.stamp);
 			imu_preintegrator.addIMUMsg(*imuData);
-
 
 		}
 
@@ -168,9 +170,12 @@ int main(int argc, char **argv)
 
 		sensor_msgs::PointCloud2::Ptr lidarData = m.instantiate<sensor_msgs::PointCloud2>();
 		if (lidarData != NULL){
-			ROS_INFO_STREAM("read laser data " << lidarData->header.stamp);
+// 			ROS_INFO_STREAM("read laser data " << lidarData->header.stamp);
 
 			mapper.gotCloud(*lidarData);
+			if( localMapper.CheckNewFrames() &&(localMapper.ProcessLocalMap())){
+				localMapper.CreateNewKeyFrames();
+			}
 			while(ros::ok() && !localMapper.hasProcessedOneFrame()){
 				Delay(100);
 			}

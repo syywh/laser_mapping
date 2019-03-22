@@ -460,6 +460,22 @@ protected:
     Vector3d Pbc;
 };
 
+
+class EdgePrioriNavStatePVRBias: public BaseBinaryEdge<15, NavState, VertexNavStatePVR, VertexNavStateBias>{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    
+	EdgePrioriNavStatePVRBias() : BaseBinaryEdge< 15, NavState, VertexNavStatePVR, VertexNavStateBias>(){};
+	
+    bool read(std::istream& is){return true;}
+
+    bool write(std::ostream& os) const{return true;}
+    
+    void computeError();
+	
+	virtual void linearizeOplus();
+};
+
 class EdgeStereoNavStatePVRPointXYZOnlyPose : public BaseUnaryEdge<3, Vector3d, VertexNavStatePVR>
 {
 public:

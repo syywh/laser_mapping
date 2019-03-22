@@ -11,13 +11,30 @@ namespace vill {
 
         _dBias_g.setZero();
         _dBias_a.setZero();
+		
+		_time = 0;
+		
+    }
+    
+    NavState::NavState(const double& time) {
+        _P.setZero();         // position
+        _V.setZero();         // velocity
+
+        _BiasGyr.setZero();   // bias of gyroscope
+        _BiasAcc.setZero();   // bias of accelerometer
+
+        _dBias_g.setZero();
+        _dBias_a.setZero();
+		
+		_time = time;
+		
     }
 
 // if there's some other constructor, normalizeRotation() is needed
     NavState::NavState(const NavState &_ns) :
             _P(_ns._P), _V(_ns._V), _R(_ns._R),
             _BiasGyr(_ns._BiasGyr), _BiasAcc(_ns._BiasAcc),
-            _dBias_g(_ns._dBias_g), _dBias_a(_ns._dBias_a) {
+            _dBias_g(_ns._dBias_g), _dBias_a(_ns._dBias_a),_time(_ns._time)  {
     }
 
     void NavState::IncSmall(Vector15d update) {

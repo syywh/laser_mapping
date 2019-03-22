@@ -61,7 +61,7 @@ void Map::AddKeyFrame(KeyFrame* pKeyFrame)
 	{
 		mCurrentKF = pKeyFrame;
 		if((mCurrentKF->mLocalMapPoints)){
-			cerr<<"1 add map points"<<endl;
+			
 			AddMapPoints();
 		}
 		else
@@ -70,7 +70,7 @@ void Map::AddKeyFrame(KeyFrame* pKeyFrame)
 	}
 		
 	if((mCurrentKF->mLocalMapPoints)){
-		cerr<<"1 add map points"<<endl;
+		
 		AddMapPoints();
 	}
 	else
