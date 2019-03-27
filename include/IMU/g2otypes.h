@@ -104,7 +104,8 @@ namespace g2o {
 		    _error << pb(0), pb(1), pb(2),0 ,0 ,0;
 	    }
     };
-    
+	
+
     
     ////////////////////////////////////////////////////////////////////////////////////////
   
@@ -175,7 +176,20 @@ namespace g2o {
         }
         
     };
+	class EdgeVelocityConstraint: public BaseUnaryEdge<1, double, VertexNavStatePVR>{
+	public:
+	    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	    
+	    EdgeVelocityConstraint() : BaseUnaryEdge<1, double, VertexNavStatePVR>(){}
+        bool read(std::istream &is) { return true; }
 
+        bool write(std::ostream &os) const { return true; }
+        
+        void computeError();
+
+//         virtual void linearizeOplus();
+	};
+    
     class EdgeNavStatePVR : public BaseMultiEdge<9, IMUPreintegrator> {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -1226,6 +1240,8 @@ protected:
 	  Vector3d priori;
 	
     };
+	
+	
 //     
 }
 

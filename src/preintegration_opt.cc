@@ -81,6 +81,7 @@ void preintegration_opt::insertFrameswithIMU(Velodyne_SLAM::Frame* pF)
 
 void preintegration_opt::insertFrame(Velodyne_SLAM::Frame* pF)
 {
+	if(pF->mnId == 0) return;
 	lFrames.push_back(pF);
 	mCurrentFrame = pF;
 	if(lFrames.size() > window_width)
@@ -581,10 +582,24 @@ void preintegration_opt::processLaserFrames()
 	for(; it_lFrames != lFrames.end(); it_lFrames++){
 		Velodyne_SLAM::Frame* pF = *it_lFrames;
 		pF->ComputePreInt();
+		frames_in_window.push_back(pF);
 	}
 	
 	bool res = Velodyne_SLAM::Optimizer::OptimizePosewithIMU(frames_in_window, tempGravity, pdbiasa, pdbiasg, pvelo);
 	
+	mimu_preintegrator->setBiasa(pdbiasa);
+	mimu_preintegrator->setBiasg(pdbiasg);
+	
+	it_lFrames = lFrames.begin();
+	for(; it_lFrames != lFrames.end(); it_lFrames++){
+		Velodyne_SLAM::Frame* pF = *it_lFrames;
+		int imuId = pF->getIMUId();
+		double oriTime = mimu_preintegrator->v_NavStates[imuId].Get_Time();
+		mimu_preintegrator->v_NavStates[imuId] = pF->GetNavState();
+		mimu_preintegrator->v_NavStates[imuId].Set_Time(oriTime);
+	}
+	
+	mimu_preintegrator->setUpdateNavState(lFrames.back()->getIMUId());
 	
 	
 

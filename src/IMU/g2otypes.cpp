@@ -1680,6 +1680,39 @@ void EdgeBiasa::computeError()
 
 }
 
+void EdgeVelocityConstraint::computeError()
+{
+	
+	const VertexNavStatePVR *vPVR = static_cast<const VertexNavStatePVR *>(_vertices[0]);
+	const NavState &NSPVR = vPVR->estimate();
+	SO3d Ri = NSPVR.Get_R();
+	Vector3d Vi = NSPVR.Get_V();
+	
+	Vector3d Vi_robot = Ri.inverse() * Vi;
+	
+	Matrix<double,1,1> error;
+	error(0,0)= Vi_robot[2];
+	_error = error;
+	
+
+}
+
+// void EdgeVelocityConstraint::linearizeOplus()
+// {
+// 	const VertexNavStatePVR *vPVR = static_cast<const VertexNavStatePVR *>(_vertices[0]);
+// 	const NavState &NSPVR = vPVR->estimate();
+// 	SO3d Ri = NSPVR.Get_R();
+// 	Vector3d Vi = NSPVR.Get_V();
+// 	
+// 	Matrix<double, 1, 9> JPVRi;
+// 	JPVRi.setZero();
+// 	
+// 	
+// 	
+// }
+
+
+
 
 // bool EdgeNavStateOnlyPose::setMeasurementFromState()
 // {

@@ -380,7 +380,7 @@ bool LocalMapping::ProcessLocalMap()
 		
 // 		cout<<"???"<<mLocalMappoints->features.cols()<<endl;
 		TLocalicp = mLocalFrames.front()->mLocalTicp;
-		*mLocalMappoints = transformation->compute(*mLocalMappoints,TLocalicp );//current frame to world
+// 		*mLocalMappoints = transformation->compute(*mLocalMappoints,TLocalicp );//current frame to world
 		
 		LocalMapUpdateForVisualisation = true;
 		Initialized = true;

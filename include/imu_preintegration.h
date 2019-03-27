@@ -93,6 +93,8 @@ namespace LIV{
 	vector<vill::IMUData> lIMUdata;
 	
 	void updateNavState(vill::NavState& oriNavState, vill::NavState& newNavState,const vill::IMUPreintegrator &imupreint);
+	
+	void setUpdateNavState(int id);
     
 
     
@@ -141,6 +143,7 @@ namespace LIV{
     };
     eIMUState mCurrentState;
 
+	int lastUpdateNavState;
 
     
 //     LIV::preintegration_opt* mppreintegration_opter;

@@ -763,7 +763,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 
     //what if we keep all of the IMU data?  
 	bool matched_cur_imu = false, matched_last_imu = false;
-	int curStampInIMUVector = 0, lastStampInIMUVector = 0;
+	int curStampInIMUVector = -1, lastStampInIMUVector = -1;
 	if(mCurrentState != WORKING){
 		matched_last_imu = true;
 		lastStampInIMUVector = -1; // perhaps the first laser frame
@@ -775,17 +775,27 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 // 	cout <<"curlaser time " << curLaserTime<<endl <<"last laser time " << lastLaserTime << endl;
 	for(int j = mimu_preintegration->v_NavStates.size()-1; j >= 0; j--){
 		NavState& pNavState  = mimu_preintegration->v_NavStates[j];
-
+// 		cout <<"find navstate @ "<< setprecision(16) << pNavState.Get_Time() << endl;
 		if(pNavState.Get_Time() > (curLaserTime + 0.01))	continue;
 		
 		//should be the imu state for laser frame
 		if( (fabs(pNavState.Get_Time() - curLaserTime) < 0.01) && (!matched_cur_imu)){
 			iso3_preint_cur.block<3,3>(0,0) = pNavState.Get_R().matrix().cast<float>();
 			iso3_preint_cur.block<3,1>(0,3) = pNavState.Get_P().cast<float>();
-			iso3_preint_last = iso3_preint_cur; // in case of iso3_preint_last can not get a value when mCurrentState != WORKING
+			if(!matched_last_imu)
+				iso3_preint_last = iso3_preint_cur; // in case of iso3_preint_last can not get a value when mCurrentState != WORKING
 			matched_cur_imu = true;
 			curStampInIMUVector = j;
 			
+		}else{
+			if( ((pNavState.Get_Time() - curLaserTime) < -0.01) &&  (!matched_cur_imu)){
+				iso3_preint_cur.block<3,3>(0,0) = pNavState.Get_R().matrix().cast<float>();
+				iso3_preint_cur.block<3,1>(0,3) = pNavState.Get_P().cast<float>();
+				if(!matched_last_imu)
+					iso3_preint_last = iso3_preint_cur; // in case of iso3_preint_last can not get a value when mCurrentState != WORKING
+				matched_cur_imu = true;
+				curStampInIMUVector = j;
+			}
 		}
 		
 		if( (fabs(pNavState.Get_Time() - lastLaserTime) < 0.01) && (!matched_last_imu)){
@@ -795,8 +805,21 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 			lastStampInIMUVector = j;
 			if(previousFrame){
 				previousFrame->setNavState(pNavState);
+				previousFrame->setIMUId(lastStampInIMUVector);
 			}
 			break;
+		}else{
+			if( ((pNavState.Get_Time() - lastLaserTime) < -0.01) &&  (!matched_last_imu)){
+				iso3_preint_last.block<3,3>(0,0) = pNavState.Get_R().matrix().cast<float>();
+				iso3_preint_last.block<3,1>(0,3) = pNavState.Get_P().cast<float>();
+				
+				matched_last_imu = true;
+				lastStampInIMUVector = j;
+				if(previousFrame){
+					previousFrame->setNavState(pNavState);
+					previousFrame->setIMUId(lastStampInIMUVector);
+				}
+			}
 		}
 		
 		if(matched_cur_imu && matched_last_imu)
@@ -807,17 +830,21 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		
 	}
 	
+	vector<vill::IMUData> imudata_in_last_frame;
 	if(lastStampInIMUVector >=0 && curStampInIMUVector >= 0){
-		vector<vill::IMUData> imudata_in_last_frame;
-		for(int j = lastLaserTime; j < curLaserTime; j++){
+// 		cout << "[icp mapper] insert imu from "<< mimu_preintegration->lIMUdata[lastLaserTime]
+		
+		for(int j = lastStampInIMUVector; j < curStampInIMUVector; j++){
 			imudata_in_last_frame.push_back(mimu_preintegration->lIMUdata[j]);
 		}
-		if(previousFrame){
-			previousFrame->SetIMUdata(imudata_in_last_frame);
-		}
+// 		if(previousFrame){
+// 			previousFrame->SetIMUdata(imudata_in_last_frame);
+// 		}
+	}else{
+		cout <<"can not find matched imu state "<< matched_cur_imu <<" " << matched_last_imu << endl;
 	}
 	
-	cout <<"[icp mapper] cur imu " << iso3_preint_cur << "last  imu " << iso3_preint_last << endl;
+// 	cout <<"[icp mapper] cur imu \n" << iso3_preint_cur << "\nlast  imu " << iso3_preint_last << endl;
 
 	
 
@@ -915,6 +942,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		
 // 		TLaserToLocalMap = PM::TransformationParameters::Identity(dimp1, dimp1);
 		TLaserToMap = TimuToMap * TimuToLaser.inverse();
+		cout <<"Initialize TLaserToMap\n"<< TLaserToMap << endl;
 		TLaserToLocalMap = TLaserToMap;
 		publishLock.unlock();
 	}
@@ -959,7 +987,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		if(reInitialized)
 			pFrame = new Frame(stamp, newPointCloud,TLaserToMap,true);//需不需要给Frame new一个frame point，一个local world point
 		else
-			pFrame = new Frame(stamp, newPointCloud,TLaserToMap,false);
+			pFrame = new Frame(stamp, newPointCloud,TLaserToMap,true);
 // 		pFrame->SetIMUPreint(imupre);
 		
 // 		pFrame->UpdateNavStatePVRFromTwc(SE3d(TLaserToMap.cast<double>()), vill::ConfigParam::GetSE3Tbl());
@@ -1111,9 +1139,17 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		}
 		
 		Frame* pFrame = new Frame(stamp, newPointCloud, TicpLocal,false);
+		pFrame->SetIMUdata(imudata_in_last_frame);
+// 		pFrame->SetInitialNavStateAndBias(previousFrame->GetNavState());
+		if(curStampInIMUVector >= 0){
+			pFrame->setNavState(mimu_preintegration->v_NavStates[curStampInIMUVector]);
+			pFrame->setIMUId(curStampInIMUVector);
+		}
 // 		pFrame->SetIMUdata(vcombinedatas);
 		SE3d se3Ticp = SE3d(Ticp.cast<double>());
 		pFrame->SetTicp(Ticp);
+// 		cout << "copyTLocalToMap\n"<<copyTLocalToMap << endl << TicpLocal<< endl;
+// 		cout <<"Frame " << pFrame->mnId <<" with pose \n"<< pFrame->GetGlobalPose()<< endl;
 // 		pFrame->SetIMUPreint(imupre);
 		{
 		  boost::mutex::scoped_lock lock(mMutexPreviousFrame);
@@ -1163,6 +1199,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 		pFrame->setGPS(mappergps);
 		
 		mpreintegration_optimizer->insertFrame(pFrame);
+		mpreintegration_optimizer->processLaserFrames();
 		
 		if( ((estimatedOverlap<KFthreOverlap)&&(isOKforCreateNewKeyFrame()) && ((pFrame->mnId - lastProcessedKeyFrame )>20) && (copyReferenceDP.features.cols()>5000) )||
 			((copyReferenceDP.features.cols()>MaxLocalMappoints)&&(isOKforCreateNewKeyFrame()) ) ||

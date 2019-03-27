@@ -143,11 +143,9 @@ int main(int argc, char **argv)
 	ros::Rate r(10);
 	
 
+	LOG(INFO) << "process begins...";
 	foreach(rosbag::MessageInstance const m, view){
-		if(!ros::ok())
-			break;
 
-		ros::spinOnce();
 
 		sensor_msgs::Imu::Ptr imuData = m.instantiate<sensor_msgs::Imu>();
 		if(use_imu && imuData){
@@ -171,21 +169,27 @@ int main(int argc, char **argv)
 		sensor_msgs::PointCloud2::Ptr lidarData = m.instantiate<sensor_msgs::PointCloud2>();
 		if (lidarData != NULL){
 // 			ROS_INFO_STREAM("read laser data " << lidarData->header.stamp);
-
+		
 			mapper.gotCloud(*lidarData);
 			if( localMapper.CheckNewFrames() &&(localMapper.ProcessLocalMap())){
 				localMapper.CreateNewKeyFrames();
 			}
-			while(ros::ok() && !localMapper.hasProcessedOneFrame()){
-				Delay(100);
-			}
+// 			while(ros::ok() && !localMapper.hasProcessedOneFrame()){
+// 				
+// 			}
 			localMapper.setProcessedOneFrame(false);
+// 			r.sleep();
+// 			Delay(100);
 
 		}
 
-
-
+		
 		//GPS TODO
+		
+		if(!(ros::ok()))
+			break;
+
+		
 
 	}
 

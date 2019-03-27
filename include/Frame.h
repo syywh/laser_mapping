@@ -107,6 +107,10 @@ public:
 	
 	void setMarginalizedInfo(Eigen::Matrix<double,15,15>& info_){marginalized_info = info_;}
 	
+	void setIMUId(int& id){mImuId = id;}
+	
+	int getIMUId(){return mImuId;}
+	
 	Eigen::Matrix<double,15,15> getMarginalizedInfo(){return marginalized_info;}
 	
 	int previousFId;
@@ -123,6 +127,8 @@ protected:
 	boost::mutex mMutexProcessed;
 	bool processed;
 	bool marginal;
+	
+	int mImuId;
 	
 	Eigen::Matrix<double,15,15> marginalized_info;
 	

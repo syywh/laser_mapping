@@ -11,12 +11,14 @@ long unsigned int Frame::nNextId=0;
 Frame::Frame()
 {
 	marginalized_info = Matrix<double,15,15>::Identity();
+	mImuId = -1;
 }
 
 Frame::Frame(const Frame& frame):mstamp(frame.mstamp),mFrameMapPoints(frame.mFrameMapPoints),mLocalTicp(frame.mLocalTicp),
 mnId(frame.mnId),processed(false),marginal(false)
 {
 	marginalized_info = Matrix<double,15,15>::Identity();
+	mImuId = -1;
 }
 
 
@@ -25,7 +27,7 @@ mFrameMapPoints(frameMapPoints)
 , mLocalTicp(pTicp), isKeyFrame(iskeyframe),processed(false),marginal(false)
 {
 	mnId=nNextId++;
-	
+	mImuId = -1;
 	marginalized_info = Matrix<double,15,15>::Identity();
 }
 
@@ -126,8 +128,8 @@ void Frame::ComputePreInt()
 	  return;
 	}
 	
-	cout<<"previous: "<<previousF_KF->mnId<<" @ "<<setprecision(15)<<previousF_KF->mstamp.toSec()
-	<<" current: "<<mnId<<setprecision(15)<<" @ "<<mstamp.toSec()<<endl;
+// 	cout<<"previous: "<<previousF_KF->mnId<<" @ "<<setprecision(15)<<previousF_KF->mstamp.toSec()
+// 	<<" current: "<<mnId<<setprecision(15)<<" @ "<<mstamp.toSec()<<endl;
 	
 	if(mvIMUdatas.empty())
 	  return;
@@ -139,7 +141,7 @@ void Frame::ComputePreInt()
 // 	  cout<<"--"<<setprecision(15)<<mvIMUdatas[beginid]._t<<endl;
 	  beginid++;
 	}
-	cout<<"begin id "<<beginid<<endl;
+// 	cout<<"begin id "<<beginid<<endl;
 	{
 	    const vill::IMUData &imu = mvIMUdatas[beginid];
 	    double dt = std::max(0., imu._t - previousF_KF->mstamp.toSec());
@@ -152,7 +154,12 @@ void Frame::ComputePreInt()
 	    const vill::IMUData &imu = mvIMUdatas[i];
 // 	    cout<<setprecision(15)<<mvIMUdatas[i]._t<<endl;
 	    if(imu._t > mstamp.toSec()){
-	      cout<<"totoal process "<<(i-beginid)<<endl;
+// 	      cout<<"totoal process "<<(i-beginid)<<endl;
+		  if(i > 0 ){
+				const vill::IMUData &imu_1 = mvIMUdatas[i-1];
+				double dt = std::max(0., mstamp.toSec() - imu_1._t);
+				mIMUPreint.update(imu_1._g - mNavState.Get_BiasGyr(), imu_1._a-mNavState.Get_BiasAcc(), dt);
+			}
 	      break;
 	    }
 	    

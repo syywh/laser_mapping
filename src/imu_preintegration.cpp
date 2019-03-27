@@ -64,6 +64,7 @@ imu_preintegration::imu_preintegration(ros::NodeHandle& nh):
   
   imu_pub = n.advertise<nav_msgs::Odometry>("imu_odom", 50, true);
   v_NavStates.clear();
+  lastUpdateNavState = 0;
 //   CoarseInitializationThread = new std::thread(&imu_preintegration::CoarseInitialization, this);
 }
 
@@ -242,11 +243,11 @@ void imu_preintegration::addIMUMsg(const sensor_msgs::Imu& imuMsgIn)
 		
 	  vill::NavState newNavState(imudata._t);
 
-	  updateNavState(v_NavStates.front(), newNavState, imupreintegrator);
+	  updateNavState(v_NavStates[lastUpdateNavState], newNavState, imupreintegrator);
 	  newNavState.Set_BiasAcc(biasa);
 	  newNavState.Set_BiasGyr(biasg);
 
-// 	  imupreintegrator.reset();
+// 	  imupreintegrator.reset();	//??
 		
 	  PM::TransformationParameters currentIMUState = PM::TransformationParameters::Identity(4,4);
 	  currentIMUState.block<3,3>(0,0) = newNavState.Get_R().matrix().cast<float>();
@@ -263,8 +264,8 @@ void imu_preintegration::addIMUMsg(const sensor_msgs::Imu& imuMsgIn)
 // 		vT_laser_imu.push_back(T); // we can save Vector6d
 //      vT_times.push_back(imuMsgIn.header.stamp.toSec());
 	  imu_pub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(currentIMUState, mapFrame, ros::Time::now()));
-	cout <<"get imu data at " << imudata._t-lIMUdata.front()._t << endl<<newNavState.Get_P().transpose() <<
-	endl << newNavState.Get_V().transpose()<< endl << newNavState.Get_R().matrix() << endl;
+// 	cout <<"get imu data at " << imudata._t-lIMUdata.front()._t << endl<<newNavState.Get_P().transpose() <<
+// 	endl << newNavState.Get_V().transpose()<< endl << newNavState.Get_R().matrix() << endl;
        
 // 	  }
   }
@@ -404,6 +405,13 @@ void imu_preintegration::updateNavState(NavState& oriNavState, NavState& newNavS
 										const IMUPreintegrator& imupreint)
 {
 	
+// 		newNavState = oriNavState;
+//         // Set bias as bias+delta_bias, and reset the delta_bias term
+//         newNavState.Set_BiasGyr(oriNavState.Get_BiasGyr() + ns.Get_dBias_Gyr());
+//         newNavState.Set_BiasAcc(oriNavState.Get_BiasAcc() + ns.Get_dBias_Acc());
+//         newNavState.Set_DeltaBiasGyr(Vector3d::Zero());
+//         newNavState.Set_DeltaBiasAcc(Vector3d::Zero());
+	
         Matrix3d dR = imupreint.getDeltaR();
         Vector3d dP = imupreint.getDeltaP();
         Vector3d dV = imupreint.getDeltaV();
@@ -421,8 +429,28 @@ void imu_preintegration::updateNavState(NavState& oriNavState, NavState& newNavS
         newNavState.Set_Pos(Pwb);
         newNavState.Set_Vel(Vwb);
         newNavState.Set_Rot(Rwb);
+		
+        newNavState.Set_BiasGyr(biasg);
+        newNavState.Set_BiasAcc(biasa);
+        newNavState.Set_DeltaBiasGyr(Vector3d::Zero());
+        newNavState.Set_DeltaBiasAcc(Vector3d::Zero());
 }
 
+void imu_preintegration::setUpdateNavState(int id)
+{
+	lastUpdateNavState = id;
+	
+	imupreintegrator.reset();
+	
+	for(int i = lastUpdateNavState + 1; i < lIMUdata.size(); i++){
+		vill::IMUData& imudata = lIMUdata[i];
+		double dt = imudata._t - lIMUdata[i-1]._t;
+		imupreintegrator.update(imudata._g-biasg, imudata._a-biasa, dt);
+		updateNavState(v_NavStates[lastUpdateNavState], v_NavStates[i], imupreintegrator);
+	}
+	
+
+}
   
 }
 
