@@ -63,7 +63,7 @@ void Optimizer::OptimizeGraph(Map* pMap, int Count, PointMatcher< float >::ICPSe
 	}
 	
 	stringstream s;
-	string temp_s = ros::package::getPath("dynamic_SLAM") +"/Log/g2o/";  
+	string temp_s = ros::package::getPath("laser_mapping") +"/Log/g2o/";  
 	s<<temp_s<<"optimize_before"<<Count<<".g2o";
 	
 	g2o::VertexSE3Expmap * firstRobotPose = dynamic_cast<g2o::VertexSE3Expmap*>(graphOptimizer.vertex(0));
@@ -105,14 +105,17 @@ void Optimizer::OptimizeGraph(Map* pMap, int Count, PointMatcher< float >::ICPSe
 		for (auto neighbour_it = pKF->neighbours.begin(); neighbour_it != pKF->neighbours.end(); ++neighbour_it){
 			int neighbor_id =  neighbour_it->first;
 			KeyFrame* neighbor_KF = pMap->getKeyFrame(neighbor_id);
+			if(neighbor_KF==nullptr)
+				continue;
 			PM::TransformationParameters pose_matrix = pKF->getPose().inverse() * neighbor_KF->getPose() ;
 			neighbour_it->second = pose_matrix;
 			
 			
 		}
 	}
-	
+
 	graphOptimizer.clear();
+
 }
 
 

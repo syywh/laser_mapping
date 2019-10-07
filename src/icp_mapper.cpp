@@ -329,8 +329,31 @@ void ICPMapper::gotGPSFix(const gps_common::GPSFix& gpsMsgIn)
 	mappergps.latitude = gpsMsgIn.latitude;
 	mappergps.longitude = gpsMsgIn.longitude;
 	mappergps.altitude = gpsMsgIn.altitude;
-	mappergps.easting = gpsMsgIn.err_horz;
-	mappergps.northing = gpsMsgIn.err_vert;
+// 	mappergps.easting = gpsMsgIn.err_horz;
+// 	mappergps.northing = gpsMsgIn.err_vert;
+	mappergps.pitch = gpsMsgIn.pitch;
+	mappergps.roll = gpsMsgIn.roll;
+
+	mappergps.timestamp = gpsMsgIn.header.stamp;
+	mappergps.satellites_used = gpsMsgIn.status.satellites_used;
+	
+	gps_time = gpsMsgIn.header.stamp;
+// 	cerr<<"------------------received gps "<<gps_time<<endl;
+
+}
+
+
+void ICPMapper::gotGPSFix(const gps_common::GPSFix& gpsMsgIn,double yaw)
+{
+	mappergps.latitude = gpsMsgIn.latitude;
+	mappergps.longitude = gpsMsgIn.longitude;
+	mappergps.altitude = gpsMsgIn.altitude;
+// 	mappergps.easting = gpsMsgIn.err_horz;
+// 	mappergps.northing = gpsMsgIn.err_vert;
+	mappergps.pitch = gpsMsgIn.pitch;
+	mappergps.roll = gpsMsgIn.roll;
+	mappergps.yaw = yaw;
+
 	mappergps.timestamp = gpsMsgIn.header.stamp;
 	mappergps.satellites_used = gpsMsgIn.status.satellites_used;
 	
@@ -929,7 +952,7 @@ void ICPMapper::processCloud_imu(DP* newPointCloud, const std::string& scannerFr
 // 		TimuToMap.col(3).head(3) = t.cast<float>();
 // 		TimuToMap.block(0,0,3,3) = q.toRotationMatrix().cast<float>();
 // 		
-// 		ifstream f("/home/turtle/catkin_ws/src/dynamic_SLAM/KeyFrame2000-2339/30/GlobalPose.txt");
+// 		ifstream f("/home/turtle/catkin_ws/src/laser_mapping/KeyFrame2000-2339/30/GlobalPose.txt");
 // 		PM::TransformationParameters TlastKeyframe = PM::TransformationParameters::Identity(4,4);
 // 		for(int iii = 0; iii < 4; iii ++){
 // 		  for(int jjj = 0;  jjj < 4; jjj++){
@@ -3015,7 +3038,7 @@ int ICPMapper::getPreviousFrameId()
 
 }
 
-void ICPMapper::gotState(const dynamic_SLAM::Localizing_Mode& msg)
+void ICPMapper::gotState(const laser_mapping::Localizing_Mode& msg)
 {
 //   boost::mutex::scoped_lock lock(mMutexState);
 //   if(msg.localization_mode == 1)

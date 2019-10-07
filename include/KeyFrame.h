@@ -33,11 +33,11 @@
 // #include "ethzasl_icp_mapper/SetMode.h"
 // #include "ethzasl_icp_mapper/GetMode.h"
 // #include "ethzasl_icp_mapper/GetBoundedMap.h" // FIXME: should that be moved to map_msgs?
-#include "dynamic_SLAM/LoadMap.h"
-#include "dynamic_SLAM/CorrectPose.h"
-#include "dynamic_SLAM/SetMode.h"
-#include "dynamic_SLAM/GetMode.h"
-#include "dynamic_SLAM/GetBoundedMap.h" 
+#include "laser_mapping/LoadMap.h"
+#include "laser_mapping/CorrectPose.h"
+#include "laser_mapping/SetMode.h"
+#include "laser_mapping/GetMode.h"
+#include "laser_mapping/GetBoundedMap.h" 
 #include "GPS.h"
 
 

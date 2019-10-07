@@ -579,13 +579,39 @@ void preintegration_opt::processLaserFrames()
 	vector<Velodyne_SLAM::Frame* > frames_in_window;
 	
 	list<Velodyne_SLAM::Frame*>::iterator it_lFrames = lFrames.begin();
-	for(; it_lFrames != lFrames.end(); it_lFrames++){
-		Velodyne_SLAM::Frame* pF = *it_lFrames;
-		pF->ComputePreInt();
-		frames_in_window.push_back(pF);
-	}
+// 	for(; it_lFrames != lFrames.end(); it_lFrames++){
+// 		Velodyne_SLAM::Frame* pF = *it_lFrames;
+// 		pF->ComputePreInt();
+// 		frames_in_window.push_back(pF);
+// 	}
 	
-	bool res = Velodyne_SLAM::Optimizer::OptimizePosewithIMU(frames_in_window, tempGravity, pdbiasa, pdbiasg, pvelo);
+	vector<Velodyne_SLAM::Frame*> vFrames, simplified_frames;
+	vFrames.assign(lFrames.begin(), lFrames.end());
+	
+	simplified_frames.push_back(vFrames[0]);
+	
+  for(int i = 0 + delta; i < vFrames.size(); i = i + delta){
+    vector<vill::IMUData> tempimudata;
+
+    for(int j = 1; j < delta; j++){
+
+      tempimudata.insert(tempimudata.end(), vFrames[i-delta+j]->mvIMUdatas.begin(), vFrames[i-delta+j]->mvIMUdatas.end());
+
+    }
+
+    vFrames[i]->mvIMUdatas.insert(vFrames[i]->mvIMUdatas.begin(), tempimudata.begin(), tempimudata.end());
+
+
+    vFrames[i]->previousF_KF = vFrames[i-delta];
+    vFrames[i]->ComputePreInt();
+    simplified_frames.push_back(vFrames[i]);
+    tempimudata.clear();
+  }
+	
+	if(simplified_frames.size() < 2)
+		return;
+	
+	bool res = Velodyne_SLAM::Optimizer::OptimizePosewithIMU(simplified_frames, tempGravity, pdbiasa, pdbiasg, pvelo);
 	
 	mimu_preintegrator->setBiasa(pdbiasa);
 	mimu_preintegrator->setBiasg(pdbiasg);
@@ -600,6 +626,7 @@ void preintegration_opt::processLaserFrames()
 	}
 	
 	mimu_preintegrator->setUpdateNavState(lFrames.back()->getIMUId());
+// 	lFrames.clear();
 	
 	
 

@@ -23,6 +23,10 @@
 #define foreach BOOST_FOREACH
 #include "sensor_msgs/NavSatFix.h"
 
+#include <poslvx/INS.h>
+#include <poslvx/INSRMS.h>
+#include <poslvx/Status.h>
+
 
 using namespace std;
 using namespace PointMatcherSupport;
@@ -165,6 +169,24 @@ int main(int argc, char **argv)
 			ROS_INFO("read gps data");
 			mapper.gotGPSNavSatFix(*gpsData);
 		}
+		
+		poslvx::INS::Ptr gpsInsData = m.instantiate<poslvx::INS>();
+		if(use_gps && gpsInsData){
+// 			ROS_INFO("read ins data");
+
+			gps_common::GPSFix msg;
+			msg.header = gpsInsData->header;
+			msg.altitude = gpsInsData->altitude;
+			msg.latitude = gpsInsData->latitude;
+			msg.longitude = gpsInsData->longitude;
+			msg.status.satellites_used = gpsInsData->status.gnss_status;
+			msg.pitch = gpsInsData->pitch;
+			msg.roll = gpsInsData->roll;
+// 			cout <<"gps status " << msg.status.status <<" " <<gpsInsData->status.gnss_status<< endl;
+			
+			mapper.gotGPSFix(msg, gpsInsData->heading);
+		}
+		
 
 		sensor_msgs::PointCloud2::Ptr lidarData = m.instantiate<sensor_msgs::PointCloud2>();
 		if (lidarData != NULL){

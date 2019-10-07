@@ -263,7 +263,12 @@ void Map::updateMap(std::vector< KeyFrame* > pv)
 KeyFrame* Map::getKeyFrame(long unsigned int id)
 {
 	boost::mutex::scoped_lock lock(mMutexMap);
-	return mspKeyFrames[(int)id];
+	if(id < mspKeyFrames.size())
+		return mspKeyFrames[(int)id];
+	else{
+		cout <<"out of map bound"<< endl;
+		return nullptr;
+	}
 
 }
 
@@ -323,6 +328,13 @@ void Map::saveMap(bool saveDP)
 	      
 	      //再调用一下saveEdge
       }
+      
+      DP wholeMP;
+	  getWholeMapPoints(wholeMP);
+	  string tempstring;
+	      if(!(ros::param::get("~FramesSavingPath",tempstring)))
+	         tempstring = ros::package::getPath("laser_mapping")+"/KeyFrame/";
+	  wholeMP.save(tempstring+"/wholeMap.vtk");
 
 }
 
@@ -624,11 +636,11 @@ void Map::savewithGlobalPose(const string& filename)
     string wholeMap = ros::package::getPath("laser_mapping")+"/Map/wholeMap.vtk";
 	string wholeMap_ply = ros::package::getPath("laser_mapping")+"/Map/wholeMap.ply";
 //     cerr<<"1"<<endl;
-	cout <<"save map to "<< wholeMap << endl;
+// 	cout <<"save map to "<< wholeMap << endl;
 	cerr<<mWholeMapPoints->features.cols()<<" points"<<endl;
-//     mWholeMapPoints->save(wholeMap);
+//      mWholeMapPoints->save(wholeMap);
 // 	mWholeMapPoints->save(wholeMap_ply);
-	cout <<"save map points done"<< endl;
+// 	cout <<"save map points done"<< endl;
 
 	
 //     cerr<<"2"<<endl;
@@ -662,6 +674,7 @@ void Map::savewithGlobalPose(const string& filename)
 			ss << t[0] << " " << t[1] << " " << t[2] << " " << q.w() << " " << q.x() << " " << q.y() << " " << q.z();
 			p_neighbour.put("transform", ss.str());
 			GPS gps = (*neighbour_it)->gps;
+			p_neighbour.put("gps.timestamp", gps.timestamp );
 			p_neighbour.put("gps.northing", gps.northing );
 			p_neighbour.put("gps.easting", gps.easting );
 			p_neighbour.put("gps.altitude", gps.altitude);
@@ -670,6 +683,7 @@ void Map::savewithGlobalPose(const string& filename)
 			p_neighbour.put("gps.roll", gps.roll);
 			p_neighbour.put("gps.pitch", gps.pitch);
 			p_neighbour.put("gps.yaw", gps.yaw);
+			p_neighbour.put("gps.satellites_used", gps.satellites_used);
 			p_neighbour.put("gps.status", gps.status);
 		        p_neighbour_list.add_child("neighbour_frame", p_neighbour);
 	}

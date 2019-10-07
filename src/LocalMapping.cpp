@@ -925,6 +925,11 @@ void LocalMapping::CreateNewKeyFrames()
 
 	temp = mLocalFrames.back();
 	mCurrentKeyFrame->mLocalMapPoints = mLocalMappoints;
+// 	if(mpMap->getKeyFrameNum()>0){
+// 		mCurrentKeyFrame->OptimizedPose(mpMap->getLatestKeyFrame()->getPose()*(mpMap->getLatestKeyFrame()->getUnPose().inverse()
+// 			* mCurrentKeyFrame->getPose()));
+// 		TLocalicp = mCurrentKeyFrame->getPose();
+// 	}
 	KFinLoopProcessing = mCurrentKeyFrame;
 
 // 	//TEST 将第一帧中的近距离点删去
@@ -993,12 +998,14 @@ void LocalMapping::CreateNewKeyFrames()
 	tempKF = mCurrentKeyFrame;
 
 // 	mpMap->AddKeyFrame(mCurrentKeyFrame);
-	mpLoopMapper->InsertKeyFrame(tempKF);//
-	mpLoopMapper->run_offline();
+
 
 
 	mCurrentKeyFrame = newKeyFrame;
 // 	mpTracker->SetStopCreateNewKeyFrame();
+	
+	mpLoopMapper->InsertKeyFrame(tempKF);//
+	mpLoopMapper->run_offline();
 
 	mLocalFrames.clear();
 	mlNewFrames.clear();
@@ -1037,37 +1044,42 @@ bool LocalMapping::isOKForInsertNewFrame()
 
 void LocalMapping::UPdateTLocalICP(int KFId)
 {
-  {
-	  cerr<<"Correct KeyFrames from "<<KFId<<endl;
-	    boost::mutex::scoped_lock lock(mMutexNewLocalMapPoints);
-	    mpTracker->SetStopCreateNewKeyFrame();
-	    
-	    std::vector<KeyFrame*> allKeyFrames;
-	      cerr<<"Waiting to get  All KeyFrames"<<endl;
-	    mpMap->getAllKeyFrames(allKeyFrames);
-	      cerr<<"Get All KeyFrames, size is "<<allKeyFrames.size()<<endl;
-
-// 	    int i = KFId;
-	    int i = allKeyFrames.size()-1;
-	    for(; i>=0; i--){
-		    cerr<<i<<endl;
-		    if(allKeyFrames[i]->mnId == KFId)
-			    break;
-	    }
-	    
-	    PM::TransformationParameters OptimizedT = allKeyFrames[i++]->getPose();
-    // 	PM::TransformationParameters tempT;
-	    allKeyFrames.push_back(mCurrentKeyFrame);
-	   
-	    for(; i<allKeyFrames.size(); i++)
-	    {
-	      cerr<<i<<endl;
-		  OptimizedT = OptimizedT * allKeyFrames[i]->mRelative_Pose;
-		  allKeyFrames[i]->OptimizedPose(OptimizedT);
-	    }
-	    mpTracker->ResetStopCreateNewKeyFrame();
-	    TLocalicp = mCurrentKeyFrame->getPose();
-	}
+	
+	mCurrentKeyFrame->OptimizedPose(mpMap->getLatestKeyFrame()->getPose()*(mpMap->getLatestKeyFrame()->getUnPose().inverse()
+			* mCurrentKeyFrame->getPose()));
+// 	TLocalicp = mCurrentKeyFrame->getPose().inverse() * mCurrentKeyFrame->getUnPose()*TLocalicp;
+	TLocalicp = mCurrentKeyFrame->getPose();
+//   {
+// 	  cerr<<"Correct KeyFrames from "<<KFId<<endl;
+// // 	    boost::mutex::scoped_lock lock(mMutexNewLocalMapPoints);
+// // 	    mpTracker->SetStopCreateNewKeyFrame();
+// 	    
+// 	    std::vector<KeyFrame*> allKeyFrames;
+// 	      cerr<<"Waiting to get  All KeyFrames"<<endl;
+// 	    mpMap->getAllKeyFrames(allKeyFrames);
+// 	      cerr<<"Get All KeyFrames, size is "<<allKeyFrames.size()<<endl;
+// 
+// // 	    int i = KFId;
+// 	    int i = allKeyFrames.size()-1;
+// 	    for(; i>=0; i--){
+// 		    cerr<<i<<endl;
+// 		    if(allKeyFrames[i]->mnId == KFId)
+// 			    break;
+// 	    }
+// 	    
+// 	    PM::TransformationParameters OptimizedT = allKeyFrames[i++]->getPose();
+//     // 	PM::TransformationParameters tempT;
+// 	    allKeyFrames.push_back(mCurrentKeyFrame);
+// 	   
+// 	    for(; i<allKeyFrames.size(); i++)
+// 	    {
+// 	      cerr<<i<<endl;
+// 		  OptimizedT = OptimizedT * allKeyFrames[i]->mRelative_Pose;
+// 		  allKeyFrames[i]->OptimizedPose(OptimizedT);
+// 	    }
+// // 	    mpTracker->ResetStopCreateNewKeyFrame();
+// 	    TLocalicp = mCurrentKeyFrame->getPose();
+// 	}
 	
 // 	tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TLocalicp, "/map", "/Local", ros::Time::now()));
 }

@@ -7,7 +7,7 @@
 #include "imu_preintegration.h"
 #include "odom_preintegration.h"
 #include "LocalMapping.h"
-#include "dynamic_SLAM/Localizing_Mode.h"
+#include "laser_mapping/Localizing_Mode.h"
 // #include "IMU/IMUPreintegrator.h"
 
 #include "fstream"
@@ -38,6 +38,7 @@
 #include <gps_common/GPSFix.h>
 #include "sensor_msgs/NavSatFix.h"
 #include <sensor_msgs/Imu.h>
+
 
 #include <message_filters/subscriber.h>
 #include <message_filters/connection.h>
@@ -247,6 +248,7 @@ public:
 		return cloud_in;
 	}
 	void gotGPSNavSatFix(const sensor_msgs::NavSatFix& gpsMsgIn);
+	void gotGPSFix(const gps_common::GPSFix& gpsMsgIn, double yaw);
 	void stop();
 	
 protected:
@@ -258,7 +260,7 @@ protected:
 	
 	void gotCloudandGPS(const sensor_msgs::PointCloud2ConstPtr& cloudMsgIn, const rtk_gps::PositionConstPtr& gpsMsgInP, const rtk_gps::OrientationConstPtr& gpsMsgInO);
 	void gotIMU( const sensor_msgs::ImuConstPtr& msg);
-	void gotState(const dynamic_SLAM::Localizing_Mode& msg);
+	void gotState(const laser_mapping::Localizing_Mode& msg);
 // 	void processCloud(unique_ptr<DP> cloud, const std::string& scannerFrame, const ros::Time& stamp, uint32_t seq);
 	void processCloud_imu(DP* cloud, const std::string& scannerFrame, const ros::Time& stamp, uint32_t seq);
 	void processCloud(DP* cloud, const std::string& scannerFrame, const ros::Time& stamp, uint32_t seq);

@@ -1,5 +1,5 @@
 - FixStepSamplingDataPointsFilter:
-    startStep: 10
+    startStep: 3
 #- RandomSamplingDataPointsFilter:
 #    prob: 0.8
 - SurfaceNormalDataPointsFilter:
