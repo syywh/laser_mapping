@@ -62,12 +62,17 @@ public:
 	bool load(const std::string& filename);
 // 	bool load(const std::string& filename, long unsigned int pfixedNode);
 	bool loadwithoutDP(const std::string& filename);
+	bool loadwithoutDP(const std::string& fileFramesname, const std::string& filename, long unsigned int pfixedNode);
 	bool LoadfromXML(const std::string& filename);
 	bool loadDPforInit(int id);
 	void filterMapPoints();
 	void setBeginID(int num);
 	void showNodesPose();
 	bool linkNodes();
+	void drawTracjectory( const std::string framefile);
+	void setSavingDir(std::string& dir_name){
+		saving_dir = dir_name;
+	}
 	
 
 protected:
@@ -99,6 +104,13 @@ protected:
 	int fixedNode;
 	float static_th_for_keeping;
 	ros::NodeHandle nh;
+	
+	std::map< long unsigned int, KeyFrame* > mKeyFrames;
+	int MapSize;
+	int Max_id;
+	
+	string saving_dir;
+
 };
 
 	

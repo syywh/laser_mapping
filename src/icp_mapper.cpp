@@ -1788,7 +1788,7 @@ void ICPMapper::processCloud(DP* newPointCloud, const std::string& scannerFrame,
 	{
 	  boost::mutex::scoped_lock lock(mMutexState);
 	  _CurrentState = mCurrentState;
-	  cout<<"Current State "<<_CurrentState<<" "<<mCurrentState<<endl;
+	 // cout<<"Current State "<<_CurrentState<<" "<<mCurrentState<<endl;
 	}
 	
 

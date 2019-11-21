@@ -3,6 +3,7 @@
 #include "ros/package.h"
 #include <boost/pending/property.hpp>
 #include <boost/graph/graph_concepts.hpp>
+#include <boost/filesystem/operations.hpp>
 #include "glog/logging.h"
 
 namespace Velodyne_SLAM {
@@ -50,12 +51,15 @@ Map::Map():transformation(PM::get().REG(Transformation).create("RigidTransformat
 		
 	}
 	
+	Max_id = 0;
+	
 }
 
 void Map::AddKeyFrame(KeyFrame* pKeyFrame)
 {
 	boost::mutex::scoped_lock lock(mMutexMap);
 	mspKeyFrames.push_back(pKeyFrame);
+	mCurrentKF = pKeyFrame;
 	cout << "map add keyframe "<<pKeyFrame->mnId << endl;
 	if(!mCurrentKF)
 	{
@@ -75,7 +79,7 @@ void Map::AddKeyFrame(KeyFrame* pKeyFrame)
 	}
 	else
 		cerr<<"KeyFrame"<<pKeyFrame->mnId<<" dosen't have DP"<<endl;
-	mCurrentKF = pKeyFrame;
+	//TEST, since the new added keyframe in local mapping process is finished, this can move forward?
 	if(pKeyFrame->mnId>mnMaxKFid)
 		mnMaxKFid=pKeyFrame->mnId;
 // 	fMap<<pKeyFrame->mnId<<endl<<pKeyFrame->getPose()<<endl;
@@ -142,7 +146,8 @@ void Map::AddMapPoints()
 		
 	//	delete t;
 	}
-// 	mapPostFilters.apply(*mWholeMapPoints);
+// consider time or space
+ 	mapPostFilters.apply(*mWholeMapPoints);
 	mbMapUpdated = true;
 	
 
@@ -198,7 +203,10 @@ KeyFrame* Map::getLatestKeyFrame()
 int Map::getKeyFrameNum()
 {
 	boost::mutex::scoped_lock lock(mMutexMap);
-	return (mspKeyFrames.size());
+	if(mspKeyFrames.size()!=0)
+		return (mspKeyFrames.size());
+	else
+		return mKeyFrames.size();
 }
 
 void Map::getAllKeyFrames(std::vector< KeyFrame* >& pv)
@@ -213,13 +221,15 @@ void Map::updateMap(std::vector< KeyFrame* > pv)
 {
 	boost::mutex::scoped_lock lock(mMutexMap);
 	KeyFrame* tempkf = pv[beginID];
-	DP* temp = tempkf->mLocalMapPoints;
+// 	DP* temp = tempkf->mLocalMapPoints;
+	DP* temp = new DP(DP::load(saving_dir+"/"+to_string(tempkf->mnId)+"/DataPoints.vtk"));
 
 // 	cerr<<"0"<<endl;
 	if(mWholeMapPoints)
 		delete mWholeMapPoints;
 	mWholeMapPoints = new DP(temp->features,temp->featureLabels
 		,temp->descriptors, temp->descriptorLabels);
+	delete temp;
 	
 	
 	DP transformedDP = transformation->compute(*mWholeMapPoints, tempkf->getPose());
@@ -235,11 +245,12 @@ void Map::updateMap(std::vector< KeyFrame* > pv)
 	
 	for(size_t tt =beginID+1;tt<(pv.size()-1); tt++)
 	{
-		temp = pv[tt]->mLocalMapPoints;
+// 		temp = pv[tt]->mLocalMapPoints;
+		temp = new DP(DP::load(saving_dir+"/"+to_string(pv[tt]->mnId)+"/DataPoints.vtk"));
 		DP* t = new DP(temp->features,temp->featureLabels
 			,temp->descriptors, temp->descriptorLabels/*,
 			temp->times, temp->timeLabels*/);
-		*t = transformation->compute(*t, pv[tt]->getPose());
+		*t = transformation->compute(*t, pv[tt]->getPose()); 
 		
 		int cnt = 0;
 		int staticStarting = t->getDescriptorStartingRow("probabilityStatic");
@@ -254,6 +265,7 @@ void Map::updateMap(std::vector< KeyFrame* > pv)
 		t_static.conservativeResize(cnt);
 		mWholeMapPoints->concatenate(t_static);
 		delete t;	
+		delete temp;
 	}
 // 	cerr<<"2"<<endl;
 // 	mapPostFilters.apply(*mWholeMapPoints);
@@ -266,8 +278,13 @@ KeyFrame* Map::getKeyFrame(long unsigned int id)
 	if(id < mspKeyFrames.size())
 		return mspKeyFrames[(int)id];
 	else{
-		cout <<"out of map bound"<< endl;
-		return nullptr;
+		
+		if(id < mKeyFrames.size()){
+			return mKeyFrames[id];
+		}else{
+			cout <<"out of map bound"<< endl;
+			return nullptr;
+		}
 	}
 
 }
@@ -284,21 +301,26 @@ void Map::saveMap(bool saveDP)
 	      string tempstring;
 	      if(!(ros::param::get("~FramesSavingPath",tempstring)))
 	         tempstring = ros::package::getPath("laser_mapping")+"/KeyFrame/";
-	      temps<<"mkdir "<<tempstring<<mspKeyFrames[i]->mnId;
-	      try{
-		    system(temps.str().c_str());
-	      }catch(runtime_error &e)
-	      {
-		  cerr<<"All Ready Exit! "<<e.what()<<endl;
-	      }
+	      temps<<tempstring<<mspKeyFrames[i]->mnId;
+// 	      try{
+// 		    system(temps.str().c_str());
+// 			std::cout << temps.str() <<std::endl;
+// 	      }catch(runtime_error &e)
+// 	      {
+// 			cerr<<"All Ready Exit! "<<e.what()<<endl;
+// 	      }
+			//create in localmapping
+	      //boost::filesystem::path dir(temps.str());
+		  //if (boost::filesystem::create_directory(dir))
+		  //	std::cout << "Success create dir " << temps.str() << "\n";
 	      if(saveDP){
-		stringstream tempDPs;
-		cerr<<mspKeyFrames[i]->mnId<<endl;
-		tempDPs<<tempstring<<mspKeyFrames[i]->mnId<<"/DataPoints.vtk";
-		mspKeyFrames[i]->mLocalMapPoints->save(tempDPs.str());
+			stringstream tempDPs;
+			cerr<< "save datapoints for submap "<<mspKeyFrames[i]->mnId<<endl;
+			tempDPs<<tempstring<<mspKeyFrames[i]->mnId<<"/DataPoints.vtk";
+			mspKeyFrames[i]->mLocalMapPoints->save(tempDPs.str());
 	      }
 	      
-	      cerr<<"KeyFrame "<<mspKeyFrames[i]->mnId<<endl;
+// 	      cerr<<"KeyFrame "<<mspKeyFrames[i]->mnId<<endl;
 	      stringstream poses;
 	      poses<<tempstring<<mspKeyFrames[i]->mnId<<"/GlobalPose.txt";
 	      fPosetxt.open(poses.str());
@@ -650,7 +672,7 @@ void Map::savewithGlobalPose(const string& filename)
     cerr<<" "<<mspKeyFrames.size()<<endl;
     cerr<<" "<<max_KF_ID<<endl;
     cerr<<"is frames right "<<mFrame_Record.size()<<" "<<(double)(mspKeyFrames.size()-max_KF_ID)<<endl;//beginID ->mspKeyFrames intial size
-    for (auto node_it = (mspKeyFrames.begin() + max_KF_ID); node_it != (mspKeyFrames.end()-1); ++node_it){
+    for (auto node_it = (mspKeyFrames.begin() + max_KF_ID); node_it != (mspKeyFrames.end()); ++node_it){
 	    boost::property_tree::ptree p_node;
 	    p_node.put("keyframe_id", (*node_it)->mnId);
 	    p_node.put("keyframe_frame_id", (*node_it)->mnFrameId );
@@ -997,18 +1019,19 @@ bool Map::loadwithoutDP(const string& filename)
       int Num_KF = pxml.get<int>("map.property.node_count");
       cerr<<"Num of KeyFrame in Map "<<Num_KF<<endl;
       boost::property_tree::ptree pMap = pxml.get_child("map.node_list"); 
-      string KFbase = ros::package::getPath("laser_mapping")+"/KeyFrame/";
+      string KFbase = filename+"/frames/";
       max_KF_ID = 0;
 
       for (auto p_node_it = pMap.begin(); p_node_it != pMap.end(); ++p_node_it)
       {
-	      KeyFrame* newKeyFrame = new KeyFrame();
-	       int node_id = p_node_it->second.get<int>("id");
-		cerr<<endl<<endl<<node_id<<endl;	//first是node
+		KeyFrame* newKeyFrame = new KeyFrame();
+		int node_id = p_node_it->second.get<int>("id");
+		cerr<<endl<<endl<<node_id<<endl;	//first is node
+
 		newKeyFrame->mnId = node_id;
 		if(max_KF_ID<newKeyFrame->mnId)
 			max_KF_ID = node_id;
-// 		cerr<<"data() "<<(p_node_it->second.get_child("")).count("id")<<endl;
+
 		stringstream posestring;
 		posestring<<KFbase<<newKeyFrame->mnId<<"/GlobalPose.txt";
 		ifstream fT;
@@ -1065,6 +1088,94 @@ bool Map::loadwithoutDP(const string& filename)
 //        cerr<<"kankan "<<newkf->mnId<<endl;
        
       return true;
+}
+
+
+
+bool Map::loadwithoutDP(const std::string& fileFramesname, const string& filename, long unsigned int pfixedNode)
+{
+      fixedNode = pfixedNode;
+	  cout << "load map from " << filename << endl;
+	  
+      boost::property_tree::ptree pxml;
+      boost::property_tree::read_xml(filename, pxml);
+      int Num_KF = pxml.get<int>("map.property.node_count");
+      cerr<<"Num of KeyFrame in Map "<<Num_KF<<endl;
+      boost::property_tree::ptree pMap = pxml.get_child("map.node_list"); 
+      string KFbase = fileFramesname;
+	  
+	  MapSize = Num_KF;
+	  
+	  bool FIXED = false;
+
+      for (auto p_node_it = pMap.begin(); p_node_it != pMap.end(); ++p_node_it)
+      {
+		KeyFrame* newKeyFrame = new KeyFrame();
+		int node_id = p_node_it->second.get<int>("id");
+		cerr<<endl<<endl<<node_id<<endl;	//first是node
+		
+		newKeyFrame->mnId = node_id;
+		if(Max_id<node_id)
+			Max_id = node_id;
+		
+		
+
+		
+		
+		
+		pair<long unsigned int, KeyFrame*> pair_id_kf = 
+			pair<long unsigned int, KeyFrame*>(newKeyFrame->mnId, newKeyFrame);
+
+
+		
+		if( node_id == fixedNode){
+			PM::TransformationParameters tempT = PM::TransformationParameters::Identity(4,4);
+			newKeyFrame->SetPose(tempT);//TODO, change to gps
+			FIXED = true;
+		}
+		
+
+		
+		 boost::property_tree::ptree p_neighbour_list = p_node_it->second.get_child("neighbour_list");
+		 for (auto p_neighbour_it = p_neighbour_list.begin(); p_neighbour_it != p_neighbour_list.end(); ++p_neighbour_it)
+		 {
+			 pair<long unsigned int, PM::TransformationParameters> temp_neighbor;
+			 pair<long unsigned int, bool> temp_neighbor_reachable;
+			int neighbour_id = p_neighbour_it->second.get<int>("id");
+			assert(neighbour_id >= 0 && neighbour_id < nodes_.size());
+			temp_neighbor.first = neighbour_id;
+			temp_neighbor_reachable.first = neighbour_id;
+			    
+			std::string transform_str = p_neighbour_it->second.get<std::string>("transform");
+			PM::TransformationParameters temp_T = PM::TransformationParameters::Identity(4, 4);
+			std::stringstream ss(transform_str);
+			double x, y, z, qw, qx, qy, qz;
+			ss >> x >> y >> z >> qw >> qx >> qy >> qz;
+			Vector t(x, y, z);
+			Eigen::Quaterniond q(qw, qx, qy, qz);
+			temp_T.col(3).head(3) = t.cast<float>();
+			temp_T.block(0,0,3,3) = q.toRotationMatrix().cast<float>();
+			temp_neighbor.second = temp_T;
+
+			newKeyFrame->neighbours.insert(temp_neighbor);
+			bool reachable = p_neighbour_it->second.get<bool>("reachable");
+// 			temp_neighbor_reachable.second = reachable;
+			temp_neighbor_reachable.second = true;	//FIXME reachable
+			newKeyFrame->neighbours_isReachable.insert(temp_neighbor_reachable);
+			
+		}
+
+		mKeyFrames.insert(pair_id_kf);	//for quick index
+		cerr<<"KeyFrame "<<newKeyFrame->mnId<<" neighbors "<<newKeyFrame->neighbours.size()<<endl;
+	}
+	
+	if( !FIXED ){
+		ROS_ERROR_STREAM("map without fixed node "<< fixedNode);
+		return false;
+	}
+	cerr<<"Max "<<Max_id<<endl;
+
+	return true;
 }
 
 bool Map::LoadfromXML(const string& filename)
@@ -1245,5 +1356,175 @@ void Map::showNodesPose()
 }
 
 
+void Map::drawTracjectory( const string framefile)
+{
+	boost::property_tree::ptree pxml;
+	boost::property_tree::read_xml(framefile+"/map.xml_frames.xml", pxml);
+	boost::property_tree::ptree pMap = pxml.get_child("map.frame_list");	//<!-get_child would return a child ptree from the parent node  
+	
+	ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("icp_odom", 50, true);
+	ros::Rate r(1);
+	ofstream f, fgps, fkeyframe_timestamp;
+	int a  = 0;
+	f.open(framefile+"/trajectory.txt");
+	fgps.open(framefile +"/gps_trajectory.txt");
+	fkeyframe_timestamp.open(framefile+"/keyframe_timestamp.txt");
+	f << fixed;	fgps << fixed;  fkeyframe_timestamp << fixed;
+	
+	for(auto p_node_it = pMap.begin(); p_node_it!=pMap.end(); ++p_node_it){
+		cerr<<p_node_it->second.get<int>("keyframe_id")<<endl;
+		KeyFrame* keyframe = getKeyFrame(p_node_it->second.get<int>("keyframe_id"));
+		if(keyframe ==  nullptr) continue;
+		PM::TransformationParameters kfbase = keyframe->getPose();
+		Eigen::Quaternionf kfbase_q(kfbase.block<3,3>(0,0));
+			
+		std::string gps_xml_name = framefile+"/frames/"+std::to_string(keyframe->mnId)+"/gps.xml";
+		boost::property_tree::ptree gpsxml;
+		boost::property_tree::read_xml(gps_xml_name, gpsxml);
+		std::string gpstime = gpsxml.get<string>("gps.timestamp");
+		std::string gpslon = gpsxml.get<string>("gps.longitude");
+		std::string gpslat = gpsxml.get<string>("gps.latitude");
+		std::string gpsheight = gpsxml.get<string>("gps.altitude");
+		std::string gpsroll = gpsxml.get<string>("gps.roll");
+		std::string gpspitch = gpsxml.get<string>("gps.pitch");
+		std::string gpsyaw = gpsxml.get<string>("gps.yaw");
+		std::string gpssatellites = gpsxml.get<string>("gps.status.satellites_used");
+		
+		f << (gpstime) <<" "<<kfbase(0,3)<<" "<<kfbase(1,3)<<" "<<kfbase(2,3)
+						<<" "<<kfbase_q.x()<<" "<<kfbase_q.y()<<" "<<kfbase_q.z()<<" " <<kfbase_q.w()<<std::endl;
+		fgps <<	(gpstime)<<" "<<gpslon<<" "<<gpslat<<" "<<gpsheight<<" "<<gpsroll<<" "<<gpspitch<<" "<<gpsyaw<<" " <<gpssatellites<<std::endl;			
+		fkeyframe_timestamp << (gpstime) << " "<< keyframe->mnId<< std::endl;
+		
+		
+		boost::property_tree::ptree p_neighbour_list = p_node_it->second.get_child("neighbor_frame_list");
+		for(auto p_neighbour_it = p_neighbour_list.begin(); p_neighbour_it != p_neighbour_list.end(); ++p_neighbour_it){
+			PM::TransformationParameters frame_pose;
+// 			t<<p_neighbour_it->second.get("time")<<endl;
+			std::string time_str = p_neighbour_it->second.get<string>("time");
+			f<<time_str<<" ";
+
+// 			f << keyframe->mnId << endl;
+			
+// 			f << p_neighbour_it->second.get<string>("gps.latitude") <<" ";
+// 			f << p_neighbour_it->second.get<string>("gps.longitude") <<" ";
+// 			f << p_neighbour_it->second.get<string>("gps.altitude") <<endl;
+			
+			
+			std::string transform_str = p_neighbour_it->second.get<std::string>("transform");
+			PM::TransformationParameters temp_T = PM::TransformationParameters::Identity(4, 4);
+			std::stringstream ss(transform_str);	double x, y, z, qw, qx, qy, qz;
+			ss >> x >> y >> z >> qw >> qx >> qy >> qz;
+			Vector t(x, y, z);	Eigen::Quaterniond q(qw, qx, qy, qz);
+			temp_T.col(3).head(3) = t.cast<float>();	temp_T.block(0,0,3,3) = q.toRotationMatrix().cast<float>();
+			frame_pose = kfbase * temp_T;
+			odomPub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(frame_pose, "/map", ros::Time::now()));
+			
+// 			for(int ki=0;ki<4;ki++)
+// 				for(int kj=0;kj<4;kj++)
+// 					f<<frame_pose(ki,kj)<<" ";
+// 			f<< endl;
+			Eigen::Quaternion<float> qi(frame_pose.block<3,3>(0,0));
+			f << frame_pose(0,3) <<" "<<frame_pose(1,3)<<" "<<frame_pose(2,3)<<" "<<qi.x()<<" "<<qi.y()<<" "<<
+			qi.z()<<" "<<qi.w()<< endl;
+
+			
+			std::string gps_time = p_neighbour_it->second.get<std::string>("gps.timestamp");
+			fgps<<gps_time<<" ";
+			std::string gps_longitude = p_neighbour_it->second.get<std::string>("gps.longitude");
+			fgps<<gps_longitude<<" ";
+			std::string gps_latitude = p_neighbour_it->second.get<std::string>("gps.latitude");
+			fgps<<gps_latitude<<" ";
+			std::string gps_altitude = p_neighbour_it->second.get<std::string>("gps.altitude");
+			fgps<<gps_altitude<<" ";
+			std::string gps_roll = p_neighbour_it->second.get<std::string>("gps.roll");
+			fgps<<gps_roll<<" ";
+			std::string gps_pitch = p_neighbour_it->second.get<std::string>("gps.pitch");
+			fgps<<gps_pitch<<" ";
+			std::string gps_yaw = p_neighbour_it->second.get<std::string>("gps.yaw");
+			fgps<<gps_yaw<<" ";
+			std::string gnss_status = p_neighbour_it->second.get<std::string>("gps.satellites_used");
+			fgps<<gnss_status<<endl;
+			
+// 			r.sleep();
+// 			while(!a ){
+// 				scanf("%d",&a);
+// 				odomPub.publish(PointMatcher_ros::eigenMatrixToOdomMsg<float>(frame_pose, "/map", ros::Time::now()));
+// 			}
+		}
+	}
+	f.close();
+
+}
+bool Map::linkNodes()
+{
+	KeyFrame* center = getKeyFrame(fixedNode);	//定义id = fixedNode是起点，有pose
+	
+	GPS centergps;
+	center->getGPS(centergps);
+// 	
+// 	if((centergps.status == 0) && (optimizeWithGPS))	
+// 	{
+// 		cerr<<"center gps status "<<centergps.status<<endl;
+// 		cerr<<"Error! fixed node "<<center->mnId<<" does not have gps value, please select a fixed node with gps value for global localization"<<endl;
+// 		return false;
+// 	}
+	
+	set<long unsigned int> nodes_centers;		//id	待搜索位
+	set<long unsigned int> nodes_with_poses;	//id  labels 位
+	
+	nodes_centers.insert(fixedNode);
+	nodes_with_poses.insert(fixedNode);
+	
+	vKeyFrames.push_back(center);
+
+// 	center->setGeoXYZ(Rotationg_o, OriPose);
+	
+	set<long unsigned int>::iterator center_it = nodes_centers.begin();
+	while(nodes_centers.size()){
+		for( center_it = nodes_centers.begin(); center_it != nodes_centers.end(); center_it++ ){
+			//搜索临域
+			center = getKeyFrame( *center_it );
+
+			map<long unsigned int, PM::TransformationParameters>::iterator neighbor_it = center->neighbours.begin();
+
+			cerr<<"KF "<<center->mnId<<endl;
+			for( ; neighbor_it != center->neighbours.end(); neighbor_it++ ){
+
+				if( nodes_with_poses.find( neighbor_it->first) == nodes_with_poses.end() ){ 
+					
+					GPS mgps;
+					cerr<<"neighbor "<<neighbor_it->first<<endl;
+					getKeyFrame(neighbor_it->first)->getGPS(mgps);
+					
+					
+					PM::TransformationParameters tempT ;
+					tempT = center->getPose() * neighbor_it->second;
+
+					getKeyFrame(neighbor_it->first)->SetPose(tempT);
+					
+					nodes_centers.insert(neighbor_it->first);
+					nodes_with_poses.insert(neighbor_it->first);
+					
+					vKeyFrames.push_back(getKeyFrame(neighbor_it->first));
+	// 				getKeyFrame(neighbor_it->first)->setGeoXYZ(Rotationg_o, OriPose);
+// 					if( !(getKeyFrame(neighbor_it->first)->ishasGPS())) continue;
+// 					getKeyFrame(neighbor_it->first)->setGeoENA(OriENA);
+					
+
+
+				}
+			}
+
+			nodes_centers.erase(center_it);
+			
+		}
+	}
+	cerr<<"There is "<<vKeyFrames.size()<<" nodes in Map with gps value"<<endl;
+// 	if( vKeyFrames.size() != MapSize ){
+// 		ROS_ERROR_STREAM("link error! ");
+// 		return false;
+// 	}
+	return true;
+}
   
 }

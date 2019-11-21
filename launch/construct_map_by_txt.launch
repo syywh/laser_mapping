@@ -1,0 +1,18 @@
+<!-- 
+Files tuned for ethzasl_icp_mapping commit 52d78c96c2cf2f58a400c649c561dbfec95e41a4
+and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
+
+"Long-term 3D map maintenance in dynamic environments"
+-->
+
+<launch>
+
+	<param name="/use_sim_time" value="true"/>
+	<node name="construct_map_by_txt" type="construct_map_by_txt" pkg="laser_mapping" output="screen" >
+		<param name="trajectory_file" value="/media/dxq/D/data/bag/cherry/1019/1/101915_2/kf_trajectory.txt"/>
+		<param name="submap_folder" value="/media/dxq/D/data/bag/cherry/1019/1/101915_2/frames"/>
+		<param name="folder_num" value="80"/>
+		<param name="extrinsic_G_L" value="/media/dxq/D/data/bag/cherry/1019/1/101915_2/TGL.txt"/>
+	</node>
+
+</launch>

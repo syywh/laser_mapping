@@ -3,7 +3,7 @@
 #- MaxDensityDataPointsFilter:
 #   maxDensity: 1.0  # 5.0
 - MaxDensityDataPointsFilter:
-    maxDensity: 1
+    maxDensity: 50
 - MaxPointCountDataPointsFilter:
-    maxCount: 700000
+    maxCount: 3000000
 

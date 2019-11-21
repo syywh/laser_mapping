@@ -19,6 +19,8 @@
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
+#include <std_msgs/Bool.h>
+
 #include <boost/foreach.hpp>
 #define foreach BOOST_FOREACH
 #include "sensor_msgs/NavSatFix.h"
@@ -38,6 +40,11 @@ void   Delay(int   time)//time*1000为秒数
 	while(   clock()   -   now   <   time   ); 
 } 
 
+void listenStopFlag(const std_msgs::BoolConstPtr flag);
+
+bool stop_mapping;
+boost::mutex mMutexState;
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "laser_mapping_with_bag");
@@ -47,6 +54,7 @@ int main(int argc, char **argv)
 	ros::MultiThreadedSpinner spinner(4);
 	
 	bool use_imu = false, use_odom = false, use_gps = false; 
+	stop_mapping = false;
 	
 	ros::param::get("~use_imu", use_imu);
 	cerr << "use imu data => " << use_imu;
@@ -66,6 +74,9 @@ int main(int argc, char **argv)
 	ros::param::get("~refinefile", refinefile);
 	string extrinsicTBC;
 	ros::param::get("~extrinsicTBC", extrinsicTBC);
+	string framesSavingPath;
+	ros::param::get("~FramesSavingPath", framesSavingPath);
+	cerr <<"Frame saving path " << framesSavingPath << endl;
 
 // read bag
 	string bagname;
@@ -79,6 +90,7 @@ int main(int argc, char **argv)
 
 
 	Velodyne_SLAM::Map World;
+	World.setSavingDir(framesSavingPath);
 	vill::ConfigParam config(extrinsicTLC, refinefile, extrinsicTBC);
 
 
@@ -94,9 +106,11 @@ int main(int argc, char **argv)
 
 	localMapper.SetIcpMapper(&mapper);
 	localMapper.SetLoopClosing(&LoopCloser);
+	localMapper.setSavingDir(framesSavingPath);
 	
 	LoopCloser.SetIcpMapper(&mapper);
 	LoopCloser.SetLocalMapper(&localMapper);
+	LoopCloser.setSavingDir(framesSavingPath);
 	
 // 	boost::thread LocalMappingThread(&Velodyne_SLAM::LocalMapping::Run, &localMapper);
 
@@ -143,6 +157,8 @@ int main(int argc, char **argv)
 	boost::thread mapPublisherThread(&Velodyne_SLAM::MapPublisher::Run, &MapPub);
 
 	rosbag::View view(databag, rosbag::TopicQuery(topics));
+	
+	ros::Subscriber flag_sub = n.subscribe("/stop_mapping", 1, &listenStopFlag);
 
 	ros::Rate r(10);
 	
@@ -211,7 +227,14 @@ int main(int argc, char **argv)
 		if(!(ros::ok()))
 			break;
 
-		
+		ros::spinOnce();
+		{
+			boost::mutex::scoped_lock lock(mMutexState);
+			if(stop_mapping){
+				ROS_INFO("received stopping message");
+				break;
+			}
+		}
 
 	}
 
@@ -226,8 +249,8 @@ int main(int argc, char **argv)
 	
 	MapPub.Refresh();
 	
-	cerr<<"check distance "<<LoopCloser.checkAllKeyFrameByDistance()<<endl;
-	LoopCloser.computeICP();
+// 	cerr<<"check distance "<<LoopCloser.checkAllKeyFrameByDistance()<<endl;
+// 	LoopCloser.computeICP();
 	
 
 	if( !(ros::param::get("~MapSavingFile", fileName)))
@@ -236,7 +259,7 @@ int main(int argc, char **argv)
 // 	World.save(fileName);
 	World.savewithGlobalPose(fileName);
 	cerr<<"Map xml  saved! "<<endl;
-	World.saveMap(true);
+	World.saveMap(false);
 	cerr<<"Map txt saved!"<<endl;
 	mapper.recordKF.close();
 	cerr<<"record txt saved!"<<endl;
@@ -245,3 +268,10 @@ int main(int argc, char **argv)
 	
 	
 }
+
+void listenStopFlag(const std_msgs::BoolConstPtr flag)
+{
+	boost::mutex::scoped_lock lock(mMutexState);
+	stop_mapping = true;
+}
+

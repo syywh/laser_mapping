@@ -142,6 +142,47 @@ target_link_libraries(mapping_by_tf
 ${LIB}
 )
 
+add_executable(opt_laser_gps
+src/Tool/opt_laser_gps.cpp
+)
+target_link_libraries(opt_laser_gps
+${LIB}
+)
+
+add_executable(construct_map_by_txt
+src/Tool/construct_map_by_txt.cpp
+)
+target_link_libraries(construct_map_by_txt
+${LIB}
+)
+
+
+add_executable(compute_relativeT_submaps
+src/Tool/compute_relativeT_submaps.cpp
+) 
+
+add_dependencies(compute_relativeT_submaps ${PROJECT_NAME}_gencpp)
+target_link_libraries(compute_relativeT_submaps
+${LIB}
+)
+
+add_executable(compute_relative_pose_twolaser
+src/Tool/compute_relative_pose_twolaser.cpp
+) 
+
+add_dependencies(compute_relative_pose_twolaser ${PROJECT_NAME}_gencpp)
+target_link_libraries(compute_relative_pose_twolaser
+${LIB}
+)
+
+add_executable(merge_two_xml
+src/Tool/merge_two_xml.cpp
+) 
+
+add_dependencies(merge_two_xml ${PROJECT_NAME}_gencpp)
+target_link_libraries(merge_two_xml
+${LIB}
+)
 
 
 

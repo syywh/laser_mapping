@@ -3,7 +3,7 @@
 #include "ros/package.h"
 // #include "pointmatcher_ros/get_params_from_server.h"
 #include <boost/graph/graph_concepts.hpp>
-
+#include <boost/filesystem/operations.hpp>
 
 // using namespace PointMatcherSupport;
 namespace Velodyne_SLAM {
@@ -1010,6 +1010,15 @@ void LocalMapping::CreateNewKeyFrames()
 	mLocalFrames.clear();
 	mlNewFrames.clear();
 	mLocalFrames.push_back(temp);
+	
+	//save and delete the map points of temp
+	string keyframe_dir = saving_dir+"/"+to_string(tempKF->mnId);
+	boost::filesystem::path dir(keyframe_dir);
+    if (boost::filesystem::create_directory(dir))
+		std::cout << "Success create dir " << keyframe_dir << "\n";
+	tempKF->mLocalMapPoints->save(keyframe_dir+"/DataPoints.vtk");
+	delete tempKF->mLocalMapPoints;
+	
 	}
 // 	tfBroadcaster.sendTransform(PointMatcher_ros::eigenMatrixToStampedTransform<float>(TLocalicp, "/map", "/Local", ros::Time::now()));
 	LocalMapUpdateForVisualisation = true;
@@ -1088,6 +1097,12 @@ void LocalMapping::Stopping()
 {
 	mCurrentKeyFrame->mLocalMapPoints = mLocalMappoints;
 	mpMap->AddKeyFrame(mCurrentKeyFrame);
+	string keyframe_dir = saving_dir+"/"+to_string(mCurrentKeyFrame->mnId);
+	boost::filesystem::path dir(keyframe_dir);
+    if (boost::filesystem::create_directory(dir))
+		std::cout << "Success create dir " << keyframe_dir << "\n";
+	mCurrentKeyFrame->mLocalMapPoints->save(keyframe_dir+"/DataPoints.vtk");
+	delete mCurrentKeyFrame->mLocalMapPoints;
 }
 
 

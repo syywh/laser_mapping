@@ -66,6 +66,10 @@ public:
 	void Stopping();
 	
 	bool initializationforReSLAM();
+	
+	void setSavingDir(std::string& dir_name){
+		saving_dir = dir_name;
+	}
 
 
 	
@@ -171,6 +175,8 @@ private:
 
 	 bool processedOneFrame;
 	 boost::mutex mMutexprocessedOncFrame;
+	 
+	 std::string saving_dir;
 	
 };
 }

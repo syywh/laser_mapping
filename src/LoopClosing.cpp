@@ -205,8 +205,11 @@ bool LoopClosing::DetectLoop()
 		try{
 		  
 		  TCu_Can = (TCurrent.inverse())*( (*vpInDistCandidates_it)->getPose());
-
+		 
+		(*vpInDistCandidates_it)->mLocalMapPoints = 
+				new DP(DP::load(saving_dir+"/"+to_string((*vpInDistCandidates_it)->mnId)+"/DataPoints.vtk"));
 		TCandidateToCurrentICP = icp(*((*vpInDistCandidates_it)->mLocalMapPoints), TCu_Can);
+		delete (*vpInDistCandidates_it)->mLocalMapPoints;
 		const double estimatedOverlap = icp.errorMinimizer->getOverlap();
 		
 		

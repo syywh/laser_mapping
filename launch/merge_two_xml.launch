@@ -1,0 +1,18 @@
+
+<launch>
+	<node name="merge_two_xml" type="merge_two_xml" pkg="laser_mapping" output="screen" >
+		
+		<!--param name="directory" value="/media/dxq/D/data/bag/zjg/11101319/frames" /-->
+		<param name="xml1" value="/media/dxq/D/data/bag/zjg/11101319/" />
+		<param name="xml2" value="/media/dxq/D/data/bag/zjg/11101338/" />
+		
+		
+		<param name="merged_xml" value="/media/dxq/D/data/bag/zjg/merge/" />
+		
+		<param name="relative_file" value="/media/dxq/D/data/bag/zjg/rela_19_38_computed.txt" />
+		<param name="ori_of_2" value="/media/dxq/D/data/bag/zjg/ori_of_38.txt" />
+		
+
+	</node>
+
+</launch>

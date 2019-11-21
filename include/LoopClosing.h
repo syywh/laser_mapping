@@ -48,6 +48,10 @@ public:
 	int checkAllKeyFrameByDistance();
 	int computeICP();
 	
+	void setSavingDir(std::string& dir_name){
+		saving_dir = dir_name;
+	}
+	
 	bool isUpdate;
 // 	void RequestReset();
 	
@@ -93,6 +97,7 @@ protected:
 	
 	vector<pair<int, int> > candidateKFByDistance;
 	
+	std::string saving_dir;
 	
 };
 }

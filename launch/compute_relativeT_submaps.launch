@@ -1,0 +1,17 @@
+
+<launch>
+	<node name="compute_relativeT_submaps" type="compute_relativeT_submaps" pkg="laser_mapping" output="screen" >
+
+		<!--param name="fixedNode" value="1"/在multi-session里面改-->
+		
+		<param name="directory" value="/media/dxq/D/data/bag/zjg/merge/frames" />
+		<param name="submap1" value="6" />
+		<param name="submap2" value="257" />
+		
+		<param name="rectify_file" value="/media/dxq/D/data/bag/zjg/merge/relative.txt" />
+		<param name="icp_file" value="$(find laser_mapping)/cfg/icp_dynamic_submap.yaml" />
+		
+
+	</node>
+
+</launch>

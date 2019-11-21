@@ -44,6 +44,18 @@ mstamp(stamp), mTicp(pTicp), mnFrameId(pFrameId)
 }
 
 
+bool KeyFrame::getGPS(GPS& gps)
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+	if(hasGPS){
+		gps = mGPS;
+		return true;
+	}else{
+		return false;
+	}
+
+}
+
 KeyFrame::DP* KeyFrame::getFrameDataPoints()
 {
 	return mFrameMapPoints;
