@@ -23,13 +23,17 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 
 	<param name="/use_sim_time" value="false"/>
 	<node name="laser_mapping_with_bag" type="laser_mapping_with_bag" pkg="laser_mapping" output="screen" >
-		<param name="bagname" value="/media/dxq/jz/gab/2019-11-19-11-37-10.bag"/>
+		<param name="bagname" value="/media/dxq/D/data/bag/cherry/1205/14/2019-12-05-14-merge.bag"/>
 		<param name="TASK" value="without_map"/>
 		<param name="reSLAM_refKFID" value="9"/>
 		<param name="BeginID" value="0"/>
 		<param name="firstPose" value="$(find laser_mapping)/cfg/firstPose.txt" />
 		<param name="Debug_ICP" value="False" />
 		<param name="mapElevation" value="False" />
+		
+		<param name="bag_begin" value="150" />
+		<param name="bag_duration" value="70" />
+		
 	
 		<param name="subscribe_scan" value="false"/>
 		<param name="subscribe_cloud" value="true"/>
@@ -40,8 +44,8 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="image_msg_name" value="/camera/left/image_rect_color" />
 		<param name="gps_msg_name" value="/ins/data" />
 
-		<param name="MapSavingFile" value="/media/dxq/D/data/YQ/20191119_laser/map.xml"/>
-		<param name="FramesSavingPath" value="/media/dxq/D/data/YQ/20191119_laser/frames/"/>
+		<param name="MapSavingFile" value="/media/dxq/D/data/bag/cherry/1205/14/laser_map/map.xml"/>
+		<param name="FramesSavingPath" value="/media/dxq/D/data/bag/cherry/1205/14/laser_map/frames/"/>
 		
 		<param name="MapReadingFile" value="$(find laser_mapping)/KeyFrame/map_smallspace.xml"/>
 		<param name="FramesReadingPath" value="$(find laser_mapping)/KeyFrame/frames/"/>

@@ -1369,7 +1369,9 @@ void Map::drawTracjectory( const string framefile)
 	f.open(framefile+"/trajectory.txt");
 	fgps.open(framefile +"/gps_trajectory.txt");
 	fkeyframe_timestamp.open(framefile+"/keyframe_timestamp.txt");
-	f << fixed;	fgps << fixed;  fkeyframe_timestamp << fixed;
+
+	
+	f << fixed;	fgps << fixed;  fkeyframe_timestamp << fixed; 
 	
 	for(auto p_node_it = pMap.begin(); p_node_it!=pMap.end(); ++p_node_it){
 		cerr<<p_node_it->second.get<int>("keyframe_id")<<endl;

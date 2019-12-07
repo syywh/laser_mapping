@@ -77,6 +77,14 @@ int main(int argc, char **argv)
 	string framesSavingPath;
 	ros::param::get("~FramesSavingPath", framesSavingPath);
 	cerr <<"Frame saving path " << framesSavingPath << endl;
+	
+	double bag_start, bag_durr;
+    n.param<double>("bag_begin", bag_start, 0);
+    n.param<double>("bag_duration", bag_durr, -1);
+	ROS_INFO("bag start: %.1f",bag_start);
+    ROS_INFO("bag duration: %.1f",bag_durr);
+	
+	
 
 // read bag
 	string bagname;
@@ -156,7 +164,14 @@ int main(int argc, char **argv)
 	
 	boost::thread mapPublisherThread(&Velodyne_SLAM::MapPublisher::Run, &MapPub);
 
-	rosbag::View view(databag, rosbag::TopicQuery(topics));
+	rosbag::View view_full(databag, rosbag::TopicQuery(topics));
+	
+	ros::Time time_init = view_full.getBeginTime();
+    time_init += ros::Duration(bag_start);
+    ros::Time time_finish = (bag_durr < 0)? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
+	ROS_INFO("time start = %.6f", time_init.toSec());
+    ROS_INFO("time end   = %.6f", time_finish.toSec());
+	rosbag::View view(databag, rosbag::TopicQuery(topics), time_init, time_finish);
 	
 	ros::Subscriber flag_sub = n.subscribe("/stop_mapping", 1, &listenStopFlag);
 

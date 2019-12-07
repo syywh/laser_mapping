@@ -2,7 +2,7 @@
 
     <node name ="opt_laser_gps" pkg="laser_mapping" type="opt_laser_gps" output="screen">
     
-        <param name="data_path" type="string" value="/media/dxq/D/data/bag/cherry/1019/1/101915_2"/>
+        <param name="data_path" type="string" value="/media/dxq/D/data/bag/cherry/1019/1/101914"/>
 
     </node>
 
