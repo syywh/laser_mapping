@@ -31,8 +31,8 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="Debug_ICP" value="False" />
 		<param name="mapElevation" value="False" />
 		
-		<param name="bag_begin" value="150" />
-		<param name="bag_duration" value="70" />
+		<param name="bag_begin" value="130" />
+		<param name="bag_duration" value="250" />
 		
 	
 		<param name="subscribe_scan" value="false"/>

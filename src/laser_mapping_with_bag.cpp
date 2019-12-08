@@ -79,8 +79,8 @@ int main(int argc, char **argv)
 	cerr <<"Frame saving path " << framesSavingPath << endl;
 	
 	double bag_start, bag_durr;
-    n.param<double>("bag_begin", bag_start, 0);
-    n.param<double>("bag_duration", bag_durr, -1);
+    ros::param::get("~bag_begin", bag_start);
+    ros::param::get("~bag_duration", bag_durr);
 	ROS_INFO("bag start: %.1f",bag_start);
     ROS_INFO("bag duration: %.1f",bag_durr);
 	
