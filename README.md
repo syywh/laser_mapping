@@ -1,11 +1,14 @@
 # laser_mapping
 
-#### brief introduction
+## brief introduction
 building laser map offline
 --only finish access to laser point now
 
-#### Dependence
-
+## Dependence
+* Ubuntu16.04, ros kinetic
+* libpointmatcher
+* libpointmatcher_ros
+* ros-kinetic-gps-common
 
 
 
