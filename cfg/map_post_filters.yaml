@@ -4,10 +4,10 @@
     keepNormals: 1
     keepDensities: 1
 # Do not use subsampling filters!
-#- MaxDensityDataPointsFilter:
-#   maxDensity: 1.0  # 5.0
-- MaxPointCountDataPointsFilter:
-    maxCount: 500000
+- MaxDensityDataPointsFilter:
+   maxDensity: 200.0  # 5.0
+#- MaxPointCountDataPointsFilter:
+#    maxCount: 500000
 #- VoxelGridDataPointsFilter:
 #    vSizeX: 0.2
 #    vSizeY: 0.2

@@ -958,15 +958,15 @@ void LocalMapping::CreateNewKeyFrames()
 	DP mapLocalFrameCut(mapLocalFrameCurrent.createSimilarEmpty());
 	PM::Matrix radius_reading = mapLocalFrameCurrent.features.topRows(3).colwise().norm();
 	for(int i = 0; i<mapPtsCount; i++){
-		if(radius_reading(0,i)<20){
+		if(radius_reading(0,i)<50){
 			mapLocalFrameCut.setColFrom(mapCutPtsCount, mapLocalFrameCurrent, i);
 			mapCutPtsCount++;
 		}
 	}
 	cerr<<"new keyframe "<<mapLocalFrameCut.features.cols()<<endl;
 	mapLocalFrameCut.conservativeResize(mapCutPtsCount);
-// 	mapLocalFrameCut.concatenate(transformation->compute(temp->mMapPoints_no_overlap,  (temp->mLocalTicp).inverse()));//keep all the points
-	mapLocalFrameCut.concatenate(*(temp->mFrameMapPoints));//keep all the points
+	mapLocalFrameCut.concatenate(transformation->compute(temp->mMapPoints_no_overlap,  (temp->mLocalTicp).inverse()));//keep all the points
+// 	mapLocalFrameCut.concatenate(*(temp->mFrameMapPoints));//keep all the points
 	
 	mLocalMappoints = new DP(mapLocalFrameCut.features, mapLocalFrameCut.featureLabels,mapLocalFrameCut.descriptors,mapLocalFrameCut.descriptorLabels);
 

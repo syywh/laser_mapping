@@ -2052,7 +2052,18 @@ void ICPMapper::processCloud(DP* newPointCloud, const std::string& scannerFrame,
 // 		
 // 		cout<<iso3_preint<<endl;
 		
+		
+		
 		TLaserToLocalMapPre = TLaserToLocalMap ;
+		
+		if(mTemp_Frame_Record.size()>2){
+			Frame* last2Frame = mTemp_Frame_Record[mTemp_Frame_Record.size()-2];
+			Frame* last1Frame = mTemp_Frame_Record[mTemp_Frame_Record.size()-1];
+			
+			TLaserToLocalMapPre = TLaserToLocalMapPre*(last2Frame->GetGlobalPose().inverse()*last1Frame->GetGlobalPose());
+			std::cout<<"update initial pose with constant velocity"<<std::endl;
+		}
+		
 // 		TLaserToLocalMapPre = copyTLocalToMap.inverse() *  (TimuToLaser * iso3_preint * TimuToLaser.inverse() );
 		cout << "new pointcloud " << newPointCloud->features.cols() << endl;
 		cout << "map pointcloud " << copyReferenceDP.features.cols() << endl;

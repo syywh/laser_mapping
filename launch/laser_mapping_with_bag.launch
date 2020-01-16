@@ -23,7 +23,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 
 	<param name="/use_sim_time" value="false"/>
 	<node name="laser_mapping_with_bag" type="laser_mapping_with_bag" pkg="laser_mapping" output="screen" >
-		<param name="bagname" value="/media/dxq/D/data/bag/cherry/1205/14/2019-12-05-14-merge.bag"/>
+		<param name="bagname" value="/media/dxq/D/data/bag/kitti_data_odometry_color_sequence_00.bag"/>
 		<param name="TASK" value="without_map"/>
 		<param name="reSLAM_refKFID" value="9"/>
 		<param name="BeginID" value="0"/>
@@ -31,21 +31,21 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="Debug_ICP" value="False" />
 		<param name="mapElevation" value="False" />
 		
-		<param name="bag_begin" value="130" />
-		<param name="bag_duration" value="250" />
+		<param name="bag_begin" value="0" />
+		<param name="bag_duration" value="-1" />
 		
 	
 		<param name="subscribe_scan" value="false"/>
 		<param name="subscribe_cloud" value="true"/>
 		<remap from="scan" to="/scan"/>
-		<param name="cloud_in" value="/lidar_center/velodyne_points"/>
+		<param name="cloud_in" value="/kitti/velo/pointcloud"/>
 		<param name="odom_msg_name" value="/thomas_velocity_controller/vel_out" />
 		<param name="imu_msg_name" value="/imu_data" />
 		<param name="image_msg_name" value="/camera/left/image_rect_color" />
 		<param name="gps_msg_name" value="/ins/data" />
 
-		<param name="MapSavingFile" value="/media/dxq/D/data/bag/cherry/1205/14/laser_map/map.xml"/>
-		<param name="FramesSavingPath" value="/media/dxq/D/data/bag/cherry/1205/14/laser_map/frames/"/>
+		<param name="MapSavingFile" value="/media/dxq/D/data/bag/kitti00/map.xml"/>
+		<param name="FramesSavingPath" value="/media/dxq/D/data/bag/kitti00/frames/"/>
 		
 		<param name="MapReadingFile" value="$(find laser_mapping)/KeyFrame/map_smallspace.xml"/>
 		<param name="FramesReadingPath" value="$(find laser_mapping)/KeyFrame/frames/"/>
@@ -90,7 +90,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="alpha" value="0.99"/>
 		<param name="beta" value="0.90"/>ss
 		<param name="maxDyn" value="0.90"/>
-		<param name="maxDistNewPoint" value="0.2"/>
+		<param name="maxDistNewPoint" value="0.12"/>
 		<param name="sensorMaxRange" value="100.0"/>
 		<param name="halfRoadWidth" value="40"/>
 		<param name="MaxLocalMappoints" value="3000000"/>
@@ -103,7 +103,7 @@ and for libpointmatcher commit e048c4d1180b1de005af072bf137ea4d8cf2b826
 		<param name="min_add_dist" value="2.5"/>
 		<param name="maxAngleforKF" value="7.0"/>
 		<param name="staticKept" value="0.55"/>
-		<param name="robot_height" value="2"/>
+		<param name="robot_height" value="1.5"/>
 	</node>
 
 </launch>

@@ -153,7 +153,7 @@ bool LoopClosing::DetectLoop()
     
     
 //     fLoopClosing<<"the "<<mpCurrentKF->mnId<<" KeyFrame"<<endl;
-    if((mpCurrentKF->mstamp.sec < mLastLoopKFTime+10) || (mpCurrentKF->mnId < mLastLoopKFid+2))	//TODO:need to be considered
+    if((mpCurrentKF->mstamp.sec < mLastLoopKFTime+3) || (mpCurrentKF->mnId < mLastLoopKFid+2))	//TODO:need to be considered
     {
 // 	    mpLocalMapper->GoOn();
 	    cerr<<"[Loop Closing]time"<<(mpCurrentKF->mstamp.sec-mLastLoopKFTime)<<endl;
@@ -177,7 +177,7 @@ bool LoopClosing::DetectLoop()
 		    break;
 	    PM::TransformationParameters TCandidate = (*vpAllCandidates_it)->getPose();
 	    Eigen::Vector2f delta_t = TCandidate.col(3).head(2) - TCurrent.col(3).head(2);
-	    if((delta_t.norm()<20))
+	    if((delta_t.norm()<30))
 	    {
 		    InDistCandidates.push_back(*vpAllCandidates_it);
 		}
@@ -205,6 +205,11 @@ bool LoopClosing::DetectLoop()
 		try{
 		  
 		  TCu_Can = (TCurrent.inverse())*( (*vpInDistCandidates_it)->getPose());
+		  
+		  //TEST
+		  if(TCu_Can(2,3)>3){
+			  TCu_Can(2,3) = 0;
+		}
 		 
 		(*vpInDistCandidates_it)->mLocalMapPoints = 
 				new DP(DP::load(saving_dir+"/"+to_string((*vpInDistCandidates_it)->mnId)+"/DataPoints.vtk"));
@@ -229,7 +234,7 @@ bool LoopClosing::DetectLoop()
 	}
 	cerr<<"[loop closer] After loop icp"<<t.elapsed()<<" In Candidate "<<InDistCandidates.size()<<endl;
 	
-	if((maxOverlap<0.5))
+	if((maxOverlap<0.4))
 	{
 // 		fLoopClosing<<"fail to overlap, InDistCandidates.size() = "<<InDistCandidates.size()<<endl;
 // 		mpLocalMapper->GoOn();
