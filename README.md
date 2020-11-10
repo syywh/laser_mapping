@@ -1,17 +1,22 @@
 # laser_mapping
 
 ## Brief introduction
-building laser map offline
---only finish access to laser point now
+Building laser map offline with submap-based structure (only finish access to laser point now).
+
+
+
 
 ## Dependence
 * Ubuntu16.04, ros kinetic
 * libpointmatcher
 * libpointmatcher_ros
-* ros-kinetic-gps-common
-* GPS msgs: [rtk-gps](https://github.com/ThomasRobot/rtk_gps.git) and [poslvx](on the way)
+* ros-kinetic-gps-common 
+* GPS msgs: [rtk-gps](https://github.com/ThomasRobot/rtk_gps.git) and poslvx
 
-
+Part of the depandences without link can be found [here](https://github.com/syywh/laser_mapping_tools.git). Installation of **libpointmatcher** can be found [here](https://github.com/ethz-asl/libpointmatcher/blob/master/doc/CompilationUbuntu.md). Our code is developed based its earlier version, you can utilize the package in this [repository](https://github.com/syywh/laser_mapping_tools.git) to avoid the failure of compilation. **libpointmatcher_ros**, **rtk-gps** and **poslvx** are ros packages and can be placed within a ros workspace and compiled by `catkin_make`. **ros-kinetic-gps-common** can be installed by
+```
+sudo apt-get install ros-kinetic-gps-common
+```
 
 ## Compile
 ```
@@ -29,6 +34,8 @@ parameters that must adjust:
 * cloud_in: the msg name of the laser points in the bag (type: sensor_msgs/PointCloud2)
 * MapSavingFile: absolute saving location of the mapping result that contains the topological relations of the submap
 * FramesSavingPath: absolute saving location of the mapping result that contains the mappoints of each submap
+
+
 
 ## Citation
 If you want to use this code in your papers, we'll be happy if you can cite
